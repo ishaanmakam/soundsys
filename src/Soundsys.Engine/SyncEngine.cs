@@ -405,6 +405,15 @@ public sealed class SyncEngine : IDisposable
         }
     }
 
+    /// <summary>The user dismissed the error message (it comes back if the problem happens again).</summary>
+    public void ClearError()
+    {
+        lock (_lock)
+        {
+            _error = null;
+        }
+    }
+
     // ───────────────────────────── Queries ─────────────────────────────
 
     /// <summary>Speakers the user can choose: Bluetooth first (JBL first among them), then the rest.</summary>

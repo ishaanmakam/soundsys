@@ -8,6 +8,8 @@
     <RootNamespace>Soundsys.App</RootNamespace>
     <AssemblyName>soundsys</AssemblyName>
     <RuntimeIdentifiers>win-arm64;win-x64</RuntimeIdentifiers>
+    <ApplicationIcon>Assets\soundsys.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- WPF Fluent ThemeMode is marked experimental -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
   </PropertyGroup>
@@ -16,6 +18,9 @@
     <!-- WinForms is only used for the tray NotifyIcon; keep WPF types unambiguous -->
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\soundsys.ico" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Soundsys.Engine\Soundsys.Engine.csproj" />
