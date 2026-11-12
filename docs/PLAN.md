@@ -1,6 +1,6 @@
 # Implementation plan
 
-Each task is small and independently testable. ✅ = done (evidence in OVERNIGHT_REPORT.md).
+Each task is small and independently testable. **Status 2026-11-12: all phases done** (evidence in OVERNIGHT_REPORT.md). The only exceptions are hardware verification, which is queued in soundsys-diag, and the items listed under "Not done" there.
 
 ## Phase 1 — Spec + plan + scaffold (branch `phase1-scaffold`)
 1. SPEC.md, DECISIONS.md, PLAN.md.
