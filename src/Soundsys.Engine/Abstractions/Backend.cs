@@ -80,6 +80,12 @@ public interface IPhoneLink : IDisposable
     /// <summary>Raised when a phone connects, starts or stops streaming (any thread).</summary>
     event EventHandler<PhoneActivityEventArgs>? ActivityChanged;
 
+    /// <summary>
+    /// Handoff: drop this phone's current connection (another phone took over) but stay available
+    /// so it can reconnect and take over again later.
+    /// </summary>
+    void Release(string phoneId);
+
     /// <summary>A capture source carrying the given phone's audio.</summary>
     IAudioSource CreateSource(string phoneId, PlaybackSuppression suppression);
 }
