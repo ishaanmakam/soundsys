@@ -111,8 +111,8 @@
                                 </Setter.Value>
                             </Setter>
                         </Trigger>
+                        <!-- Disabled: the rings already show why (grey when no speakers, breathing while calibrating). -->
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter TargetName="Root" Property="Opacity" Value="0.45" />
                             <Setter Property="Cursor" Value="Arrow" />
                         </Trigger>
                     </ControlTemplate.Triggers>

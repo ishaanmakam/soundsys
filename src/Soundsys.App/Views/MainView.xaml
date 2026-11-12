@@ -38,7 +38,7 @@
         </StackPanel>
 
         <!-- Error (Alert) and notice (InkMuted) strips. -->
-        <StackPanel Grid.Row="1" Margin="16,12,16,0">
+        <StackPanel Grid.Row="1" Margin="12,12,12,0">
             <Border Style="{StaticResource ErrorStrip}" Visibility="{Binding ErrorText, Converter={StaticResource NotEmptyToVisibility}}"
                     AutomationProperties.LiveSetting="Assertive">
                 <Grid>

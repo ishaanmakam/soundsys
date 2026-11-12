@@ -99,7 +99,7 @@ public sealed partial class SyncViewModel(EngineRunner runner, MainViewModel mai
         }
 
         var who = ms > 0 ? b : a;
-        return $"{who} {Math.Abs(ms).ToString("0", CultureInfo.CurrentCulture)} ms later";
+        return $"{who} waits {Math.Abs(ms).ToString("0", CultureInfo.CurrentCulture)} ms";
     }
 
     /// <summary>"Desk 232 ms · Bed 291 ms → Desk waits 59 ms".</summary>

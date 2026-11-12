@@ -31,7 +31,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             AutoStart = s.AutoStartWhenSpeakersOn;
             KeepAwake = s.KeepAwake;
             CheckAutomatically = s.CheckForUpdates;
-            DeveloperUnlocked = s.DeveloperOptionsUnlocked || runner.Engine.IsSimulated;
+            DeveloperUnlocked = s.DeveloperOptionsUnlocked || services.Simulation is not null;
         }
         finally
         {

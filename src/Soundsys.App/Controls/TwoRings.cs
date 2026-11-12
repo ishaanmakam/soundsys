@@ -230,7 +230,7 @@ public sealed class TwoRings : FrameworkElement
     {
         var (brush, thickness, opacity, dashed) = state switch
         {
-            RingVisual.Off => (MutedBrush, 2.0, 0.4, false),
+            RingVisual.Off => (MutedBrush, 2.0, 0.5, false),
             RingVisual.Idle => (MutedBrush, 2.5, 1.0, false),
             RingVisual.Connecting => (MutedBrush, 2.5, Breath, false),
             RingVisual.Waiting => (SignalBrush, stroke, 1.0, false),

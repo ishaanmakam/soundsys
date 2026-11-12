@@ -53,7 +53,11 @@ public sealed partial class SpeakerRowViewModel(SpeakerSlot slot, EngineRunner r
         {
             Name = s.Name;
             IsChosen = s.EndpointId is not null;
-            DeviceText = !IsChosen ? "Not chosen" : s.Available || state != EngineState.Stopped ? s.DeviceName : $"{s.DeviceName} · off";
+            // The device name only adds something when the speaker has its own name ("Desk" · JBL Flip 6).
+            var device = string.Equals(s.DeviceName, s.Name, StringComparison.OrdinalIgnoreCase) ? "" : s.DeviceName;
+            DeviceText = !IsChosen ? "Not chosen"
+                : s.Available || state != EngineState.Stopped ? device
+                : device.Length == 0 ? "off" : $"{device} · off";
             (Dot, StateText) = DotFor(s, state);
             Ring = RingFor(s, state, audioFlowing);
             BatteryText = s.BatteryPercent is { } b ? $"{b}%" : null;

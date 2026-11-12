@@ -15,6 +15,9 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Soundsys.App\Soundsys.App.csproj" />
     <ProjectReference Include="..\..\src\Soundsys.Engine\Soundsys.Engine.csproj" />
   </ItemGroup>
