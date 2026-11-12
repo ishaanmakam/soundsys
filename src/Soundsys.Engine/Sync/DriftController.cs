@@ -14,7 +14,7 @@ public sealed class DriftController
 
     private const double MaxDt = 0.1;
 
-    private readonly double _sampleRate;
+    private double _sampleRate;
     private readonly double _filterTau;
     private readonly double _tauP;
     private readonly double _tauI;
@@ -63,6 +63,13 @@ public sealed class DriftController
         _integral = Math.Clamp(_integral + (errorSeconds * dt / (_tauP * _tauI)), -MaxCorrection, MaxCorrection);
         _last = Math.Clamp((errorSeconds / _tauP) + _integral, -MaxCorrection, MaxCorrection);
         return _last;
+    }
+
+    /// <summary>Changes the sample rate the error is expressed in (source changed) and resets.</summary>
+    public void SetSampleRate(double sampleRate)
+    {
+        _sampleRate = sampleRate;
+        Reset();
     }
 
     public void Reset()
