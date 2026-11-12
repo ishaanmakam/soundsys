@@ -1,0 +1,47 @@
+<UserControl x:Class="Soundsys.App.Views.SpeakersPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:Soundsys.App.ViewModels">
+    <UserControl.Resources>
+        <DataTemplate x:Key="ChoiceTemplate" DataType="{x:Type vm:SpeakerChoice}">
+            <StackPanel Orientation="Horizontal" AutomationProperties.Name="{Binding AutomationName}">
+                <TextBlock Text="{Binding Name}" />
+                <TextBlock Text="{Binding Note}" Margin="8,0,0,0" Foreground="{DynamicResource InkMutedBrush}"
+                           Visibility="{Binding Note, Converter={StaticResource NotEmptyToVisibility}}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Speaker 1 / Speaker 2: picker + name. -->
+        <DataTemplate x:Key="SlotTemplate" DataType="{x:Type vm:SpeakerSlotViewModel}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource SectionTitle}" Text="{Binding Title}" />
+                <ComboBox Margin="0,8,0,0" HorizontalAlignment="Stretch"
+                          ItemsSource="{Binding DataContext.Choices, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          ItemTemplate="{StaticResource ChoiceTemplate}"
+                          SelectedValuePath="Id" SelectedValue="{Binding SelectedId}"
+                          AutomationProperties.Name="{Binding Title}" />
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="56" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Style="{StaticResource MutedText}" Text="Name" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" Text="{Binding NameText, UpdateSourceTrigger=PropertyChanged}" MaxLength="24"
+                             AutomationProperties.Name="{Binding Title, StringFormat={}{0} name}" />
+                </Grid>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+        <StackPanel Margin="24,20,24,16">
+            <ContentControl Content="{Binding SlotA}" ContentTemplate="{StaticResource SlotTemplate}" Focusable="False" />
+            <ContentControl Content="{Binding SlotB}" ContentTemplate="{StaticResource SlotTemplate}" Focusable="False" Margin="0,24,0,0" />
+            <TextBlock Style="{StaticResource LabelText}" Margin="0,24,0,0"
+                       Text="Bluetooth speakers are listed first. Speakers that are switched off are marked off; you can still pick them." />
+            <TextBlock Style="{StaticResource LabelText}" Margin="0,8,0,0" Text="No speakers yet? Pair them with Windows first."
+                       Visibility="{Binding HasChoices, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+            <Button Margin="0,8,0,0" Style="{StaticResource LinkButton}" Content="Open Bluetooth settings" Click="OpenBluetooth_Click" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

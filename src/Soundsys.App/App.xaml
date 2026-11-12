@@ -1,9 +1,18 @@
 ﻿<Application x:Class="Soundsys.App.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:Soundsys.App"
-             StartupUri="MainWindow.xaml">
+             xmlns:views="clr-namespace:Soundsys.App.Views"
+             ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
-         
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/soundsys;component/Theme/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <views:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+            <views:NotEmptyToVisibilityConverter x:Key="NotEmptyToVisibility" />
+            <views:EnumEqualsConverter x:Key="EnumEquals" />
+            <views:EnumToVisibilityConverter x:Key="EnumToVisible" />
+            <views:NotConverter x:Key="Not" />
+        </ResourceDictionary>
     </Application.Resources>
 </Application>
