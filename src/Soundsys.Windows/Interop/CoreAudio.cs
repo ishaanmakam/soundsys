@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 
 namespace Soundsys.Windows.Interop;
 
@@ -203,29 +204,22 @@ internal unsafe interface IAudioCaptureClientNative
     int GetNextPacketSize(out uint framesInNextPacket);
 }
 
-[ComImport]
-[Guid("72A22D78-CDE4-431D-B8CC-843A71199B6D")]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-internal interface IActivateAudioInterfaceAsyncOperationNative
-{
-    [PreserveSig]
-    int GetActivateResult(out int activateResult, [MarshalAs(UnmanagedType.IUnknown)] out object? activatedInterface);
-}
+// Process-loopback activation uses source-generated COM: the completion handler is an internal managed
+// class exposed to COM through ComWrappers ([GeneratedComClass]), which works for non-public types and
+// is free-threaded. The async operation is called through its vtable directly (see ProcessLoopbackSource).
 
-[ComImport]
+[GeneratedComInterface]
 [Guid("41D949AB-9862-444A-80F6-C261334DA5EB")]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-internal interface IActivateAudioInterfaceCompletionHandlerNative
+internal partial interface IActivateAudioInterfaceCompletionHandler
 {
     [PreserveSig]
-    int ActivateCompleted(IActivateAudioInterfaceAsyncOperationNative activateOperation);
+    int ActivateCompleted(nint activateOperation);
 }
 
 /// <summary>Marker interface: tells COM the object can be called from any apartment without marshaling.</summary>
-[ComImport]
+[GeneratedComInterface]
 [Guid("94EA2B94-E9CC-49E0-C0FF-EE64CA8F5B90")]
-[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-internal interface IAgileObject;
+internal partial interface IAgileObject;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 internal struct WaveFormatExtensible
@@ -299,5 +293,6 @@ internal static class CoreAudioIids
     public static readonly Guid AudioClient = new("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2");
     public static readonly Guid AudioRenderClient = new("F294ACFC-3146-4483-A7BF-ADDCA7C260E2");
     public static readonly Guid AudioCaptureClient = new("C8ADBD64-E71E-48a0-A4DE-185C395CD317");
+    public static readonly Guid ActivateCompletionHandler = new("41D949AB-9862-444A-80F6-C261334DA5EB");
     public const uint ClsCtxAll = 0x17;
 }

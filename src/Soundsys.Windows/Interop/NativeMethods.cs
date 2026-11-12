@@ -53,14 +53,8 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool AvRevertMmThreadCharacteristics(nint avrtHandle);
 
-    // Built-in COM marshalling for the interface parameters (LibraryImport can't marshal [ComImport] interfaces).
-#pragma warning disable SYSLIB1054
-    [DllImport("Mmdevapi.dll", ExactSpelling = true)]
-    public static extern int ActivateAudioInterfaceAsync(
-        [MarshalAs(UnmanagedType.LPWStr)] string deviceInterfacePath,
-        in Guid riid,
-        nint activationParams,
-        IActivateAudioInterfaceCompletionHandlerNative completionHandler,
-        out IActivateAudioInterfaceAsyncOperationNative activationOperation);
-#pragma warning restore SYSLIB1054
+    /// <param name="completionHandler">IActivateAudioInterfaceCompletionHandler* (a ComWrappers CCW).</param>
+    /// <param name="activationOperation">Receives IActivateAudioInterfaceAsyncOperation*; caller releases.</param>
+    [LibraryImport("Mmdevapi.dll", StringMarshalling = StringMarshalling.Utf16)]
+    public static partial int ActivateAudioInterfaceAsync(string deviceInterfacePath, in Guid riid, nint activationParams, nint completionHandler, out nint activationOperation);
 }
