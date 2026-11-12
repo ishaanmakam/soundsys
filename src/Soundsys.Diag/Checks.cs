@@ -214,11 +214,31 @@ internal static class Checks
 
         var sw = Stopwatch.StartNew();
         var first = link.GetPairedPhones()[0];
+        bool Flowing() => ctx.Engine.GetStatus() is { AudioFlowing: true, SourceName: not null };
         var flowing = await ctx.Operator.AskAsync(
             "On your phone, choose this laptop as the speaker (iPhone: Control Center → AirPlay icon → this laptop; Android: Bluetooth), then press play.",
-            () => ctx.Engine.GetStatus() is { AudioFlowing: true, SourceName: not null },
-            ctx.Wait(4),
+            Flowing,
+            ctx.Options.Simulated ? ctx.Wait(4) : TimeSpan.FromSeconds(45),
             () => ctx.Sim?.Phones.SimulatePlay(first.Id), ct).ConfigureAwait(false);
+
+        if (!flowing && link is AudioPlaybackConnectionLink apc)
+        {
+            // Phone-initiated connection didn't happen: connect from the laptop side (like AudioPlaybackConnector does).
+            ctx.Operator.Say("Nothing yet — connecting to the phone from the laptop side…");
+            foreach (var phone in link.GetPairedPhones())
+            {
+                var opened = await apc.OpenWithRetryAsync(phone.Id, ct).ConfigureAwait(false);
+                r.Add($"Laptop-initiated connect to {phone.Name}: {(opened ? "connected" : "failed")}");
+                if (opened)
+                {
+                    break;
+                }
+            }
+
+            flowing = await ctx.Operator.AskAsync(
+                "Press play on your phone (it should now show this laptop as the output).",
+                Flowing, TimeSpan.FromMinutes(3), null, ct).ConfigureAwait(false);
+        }
 
         foreach (var p in link.GetStatus())
         {
