@@ -101,14 +101,18 @@ public class ResamplerTests
         var rs = new PolyphaseResampler();
         var input = TestSignals.Sine(8192, 1000, 48000);
         var output = new float[480 * 2];
-        rs.Process(input, input, 0, 100, 1.0001, output, 2, 480); // warm-up (JIT)
-        var before = GC.GetAllocatedBytesForCurrentThread();
         var pos = 100.0;
-        for (var i = 0; i < 1000; i++)
+        void Pass()
         {
-            pos = rs.Process(input, input, 0, 100 + (i % 7), 1.0001, output, 2, 480);
+            for (var i = 0; i < 1000; i++)
+            {
+                pos = rs.Process(input, input, 0, 100 + (i % 7), 1.0001, output, 2, 480);
+            }
         }
 
+        Pass(); // warm-up: tiered JIT / on-stack replacement may allocate once
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        Pass();
         Assert.Equal(before, GC.GetAllocatedBytesForCurrentThread());
         Assert.True(pos > 0);
     }

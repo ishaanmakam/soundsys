@@ -72,7 +72,7 @@ Want to check the hardware first? Run `soundsys-diag.exe`. It tests everything (
 | Problem | Fix |
 |---|---|
 | **"Windows protected your PC"** (SmartScreen) | The builds aren't code-signed. Click **More info → Run anyway**. You only need to do this once per version. |
-| **"An Application Control policy has blocked this file"**, or the app silently won't open | **Smart App Control** is on and blocks unsigned apps; there's no "Run anyway". Either turn it off (Windows Security → App & browser control → Smart App Control → Off; note that on some Windows versions it can't be turned back on without a reset), or build and run from source with your own signing. See [TOMORROW.md](docs/TOMORROW.md#step-0). |
+| **"An Application Control policy has blocked this file"**, or the app silently won't open | **Smart App Control** is on and blocks unsigned apps; there's no "Run anyway". Either turn it off (Windows Security → App & browser control → Smart App Control → Off; note that on some Windows versions it can't be turned back on without a reset), or build and run from source with your own signing. See [TOMORROW.md](docs/TOMORROW.md#step-0-smart-app-control-read-first). |
 | The phone doesn't list the laptop as a speaker | Press **Start** in soundsys first (the laptop only offers itself as a speaker while soundsys is running in Phone mode). Make sure the phone is enabled on the **Phones** tab. Toggle Bluetooth off and on on the phone. |
 | "Bed is off or out of range" | Turn the speaker on, or bring it closer. soundsys keeps retrying and rejoins on its own. |
 | Sound also comes out of the laptop | Windows is playing the incoming audio on the laptop speakers too. Run `soundsys-diag` once; it detects which suppression method works on your laptop and saves it. |

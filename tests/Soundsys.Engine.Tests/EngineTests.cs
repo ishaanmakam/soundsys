@@ -367,12 +367,115 @@ public class EngineTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void Follows_a_speaker_whose_endpoint_id_changes_keeping_name_volume_and_sync()
+    {
+        using var rig = new Rig();
+        rig.Engine.SetManualSync(42);
+        rig.Engine.SetSpeakerVolume(SpeakerSlot.B, 0.3);
+        rig.Engine.RenameSpeaker(Bed, "Bedroom");
+        rig.Run(0.5);
+
+        rig.Backend.ReplaceSpeakerEndpoint(Bed, "sim:jbl-charge-5-new-stack");
+        rig.Run(0.5);
+
+        var status = rig.Engine.GetStatus();
+        Assert.Equal("sim:jbl-charge-5-new-stack", rig.Engine.Settings.SpeakerBId);
+        Assert.Equal("Bedroom", status.Speakers[1].Name);
+        Assert.Equal(0.3, status.Speakers[1].Volume);
+        Assert.Equal(42, rig.Engine.GetManualSync());
+    }
+
+    [Fact]
+    public void Running_speaker_whose_endpoint_id_changes_reopens_on_the_new_id()
+    {
+        using var rig = new Rig(new AppSettings { Mode = SourceMode.Laptop });
+        rig.Engine.Start();
+        rig.Run(1);
+        rig.Backend.ReplaceSpeakerEndpoint(Bed, "sim:jbl-charge-5-new-stack");
+        rig.Run(1);
+        var status = rig.Engine.GetStatus();
+        Assert.Equal("sim:jbl-charge-5-new-stack", status.Speakers[1].EndpointId);
+        Assert.True(status.Speakers[1].Playing);
+        Assert.Equal("Bed", status.Speakers[1].Name);
+    }
+
+    [Fact]
+    public void Calibration_resumes_a_running_test_signal()
+    {
+        using var rig = new Rig(new AppSettings { Mode = SourceMode.Laptop });
+        rig.Engine.Start();
+        rig.Run(1);
+        rig.Engine.StartClickTrack();
+        rig.Run(1);
+        var report = rig.Await(rig.Engine.MeasureSyncAsync());
+        Assert.True(report.Success, report.Message);
+        rig.Run(1);
+        var status = rig.Engine.GetStatus();
+        Assert.True(status.ClickTrack);
+        Assert.Equal("Playing the click track on Desk + Bed", status.Headline);
+    }
+
+    [Fact]
+    public void Calibration_right_after_music_hears_full_sweeps()
+    {
+        // Music plays right up to calibration; the sweeps must land inside their pass windows (full quality).
+        using var rig = new Rig(new AppSettings { Mode = SourceMode.Laptop });
+        rig.Engine.Start();
+        rig.Run(3);
+        var report = rig.Await(rig.Engine.CalibrateAsync());
+        output.WriteLine($"quality {report.QualityADb:F1}/{report.QualityBDb:F1} dB, rel {report.RelativeMs:F2} ms");
+        Assert.True(report.Success, report.Message);
+        Assert.InRange(report.RelativeMs!.Value, 57, 61);
+        Assert.True(report.QualityADb > 55 && report.QualityBDb > 55);
+    }
+
+    [Fact]
     public void Warns_when_windows_plays_straight_to_a_chosen_speaker()
     {
         var world = new SimWorld { DefaultSpeakerId = Desk };
         var scheduler = new SimScheduler();
         using var engine = new SyncEngine(new SimulatedBackend(scheduler, world), scheduler, new InMemorySettingsStore());
         Assert.StartsWith("Windows is also sending sound straight to Desk", engine.GetStatus().Warning);
+    }
+
+    [Fact]
+    public void Switching_sources_does_not_disturb_speaker_alignment()
+    {
+        using var rig = new Rig(new AppSettings { Mode = SourceMode.Laptop });
+        rig.Engine.SetManualSync(-59);
+        var recorders = new Dictionary<string, BlockRecorder>();
+        rig.Backend.OutputCreated += (_, device) =>
+        {
+            var rec = new BlockRecorder(rig.Engine.ChannelFor(device.Id == Desk ? SpeakerSlot.A : SpeakerSlot.B), device.Options.AcousticLatencyMs / 1000);
+            recorders[device.Id] = rec;
+            device.AddObserver(rec);
+        };
+        rig.Engine.Start();
+        rig.Run(5);
+        for (var k = 0; k < 4; k++)
+        {
+            rig.Engine.StartTestSignal(new MusicLikeSignal(), "Test music");
+            rig.Run(1.5);
+            rig.Engine.StopTestSignal();
+            rig.Run(1.5);
+        }
+
+        var a = recorders[Desk];
+        var b = recorders[Bed];
+        double max = 0;
+        for (var i = 0; i < b.HeardAt.Count; i++)
+        {
+            var pa = a.PositionAt(b.HeardAt[i]);
+            if (b.HeardAt[i] > 3 && !double.IsNaN(pa))
+            {
+                max = Math.Max(max, Math.Abs(pa - b.Position[i]) / 48000 * 1000);
+            }
+        }
+
+        var diag = rig.Engine.GetDiagnostics();
+        output.WriteLine($"Across 8 source switches: max |err| {max:F4} ms; jumps {diag.A.Jumps}/{diag.B.Jumps}; corrections {diag.A.CorrectionPpm:F0}/{diag.B.CorrectionPpm:F0} ppm");
+        Assert.True(max < 0.25, $"max {max:F4} ms");
+        Assert.InRange(diag.A.CorrectionPpm, -100, 100); // nothing saturated
     }
 
     [Fact]
