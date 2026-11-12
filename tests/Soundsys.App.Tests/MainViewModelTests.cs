@@ -164,7 +164,7 @@ public class MainViewModelTests
         rig.StartLaptopMode();
         var vm = rig.Vm;
 
-        var task = vm.SyncPage.CalibrateCommand.ExecuteAsync(null);
+        var task = rig.StartCalibration();
         rig.RunUntil(() => vm.SyncPage.StepText?.Contains("sweep", StringComparison.Ordinal) == true, what: "sweep step");
         Assert.Equal("Calibrating…", vm.Headline);
         Assert.Equal("Calibrating…", vm.ActionCaption);

@@ -142,6 +142,17 @@ internal sealed class Rig : IDisposable
         Vm.Refresh();
     }
 
+    /// <summary>
+    /// Presses Auto-calibrate and waits (real time) until the engine has actually entered calibration on the thread pool,
+    /// so virtual time can't run past it on a busy machine.
+    /// </summary>
+    public Task StartCalibration()
+    {
+        var task = Vm.SyncPage.CalibrateCommand.ExecuteAsync(null);
+        Settle(() => Engine.GetStatus().State == EngineState.Calibrating || task.IsCompleted, "calibration started");
+        return task;
+    }
+
     public void StartLaptopMode()
     {
         Engine.SetMode(SourceMode.Laptop);

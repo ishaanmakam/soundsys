@@ -80,7 +80,7 @@ public class ScreenshotTests(ITestOutputHelper output)
         using (var rig = new Rig())
         {
             rig.StartLaptopMode();
-            var task = rig.Vm.SyncPage.CalibrateCommand.ExecuteAsync(null);
+            var task = rig.StartCalibration();
             rig.RunUntil(() => rig.Vm.SyncPage.StepText?.Contains("sweep", StringComparison.Ordinal) == true, what: "sweep");
             Render("10-calibrating", rig.Vm, written);
             rig.Vm.SelectedTab = AppTab.Sync;
