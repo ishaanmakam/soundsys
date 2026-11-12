@@ -916,7 +916,12 @@ public sealed class SyncEngine : IDisposable
             return;
         }
 
-        var candidates = GetSpeakerChoices().Where(s => s.IsBluetooth).ToList();
+        // Keep Windows' own order for ties (stable sort): JBLs first, then speakers that are on.
+        var candidates = _backend.GetSpeakers()
+            .Where(s => s.IsBluetooth)
+            .OrderByDescending(s => IsJbl(s.Name))
+            .ThenBy(s => s.State)
+            .ToList();
         if (candidates.Count < 2)
         {
             return;
