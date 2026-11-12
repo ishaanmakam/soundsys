@@ -177,16 +177,23 @@ public class OutputChannelTests
         }
 
         ch.Render(buf, 480, new RenderTiming(t, 480));
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 2000; i++)
+
+        void Pass()
         {
-            history.Write(packet, t);
-            t += 0.01;
-            ch.OffsetMs = (i / 100) % 2 == 0 ? 0 : 40; // forces jumps too
-            ch.Render(buf, 480, new RenderTiming(t, 480));
-            _ = ch.GetStats();
+            for (var i = 0; i < 2000; i++)
+            {
+                history.Write(packet, t);
+                t += 0.01;
+                ch.OffsetMs = (i / 100) % 2 == 0 ? 0 : 40; // forces jumps too
+                ch.Render(buf, 480, new RenderTiming(t, 480));
+                _ = ch.GetStats();
+            }
         }
 
+        // First pass warms up every path (tiered JIT / on-stack replacement may allocate once); the second must not allocate.
+        Pass();
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        Pass();
         Assert.Equal(before, GC.GetAllocatedBytesForCurrentThread());
         Assert.True(ch.GetStats().Jumps > 0);
     }
