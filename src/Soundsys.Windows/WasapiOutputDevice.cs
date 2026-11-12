@@ -57,6 +57,9 @@ public sealed class WasapiOutputDevice : IOutputDevice
     /// <summary>The WASAPI buffer size in frames (valid after <see cref="Start"/>).</summary>
     public int BufferFrames => (int)_bufferFrames;
 
+    /// <summary>Managed bytes allocated by the render thread inside the loop during the last run (should be 0).</summary>
+    public long LoopAllocatedBytes { get; private set; }
+
     public event EventHandler<DeviceFaultEventArgs>? Faulted;
 
     public void Start(IRenderTarget target)
@@ -194,7 +197,9 @@ public sealed class WasapiOutputDevice : IOutputDevice
             started = true;
             mmcss = AudioThreading.EnterProAudio();
             handshake.ReportStarted();
+            var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
             faultHr = RenderLoop(client.Client, renderClient, target, client.BufferFrames, client.Format.Channels, out faultException);
+            LoopAllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
         }
         catch (Exception ex)
         {

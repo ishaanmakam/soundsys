@@ -51,6 +51,9 @@ public abstract class WasapiCaptureBase : IAudioSource
     /// <summary>Packets delivered since start (diagnostics; single writer: the capture thread).</summary>
     public long PacketCount => Interlocked.Read(ref _packetCount);
 
+    /// <summary>Managed bytes allocated by the capture thread inside the loop during the last run (should be 0).</summary>
+    public long LoopAllocatedBytes { get; private set; }
+
     public event EventHandler<DeviceFaultEventArgs>? Faulted;
 
     /// <summary>
@@ -209,7 +212,9 @@ public abstract class WasapiCaptureBase : IAudioSource
             started = true;
             mmcss = AudioThreading.EnterProAudio();
             handshake.ReportStarted();
+            var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
             faultHr = CaptureLoop(client.Client, captureClient, sink, client.Format, eventDriven, scratch, out faultException);
+            LoopAllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
         }
         catch (Exception ex)
         {

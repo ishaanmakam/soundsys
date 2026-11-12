@@ -187,7 +187,7 @@ public static partial class WindowsProbe
                 source.Stop();
                 var elapsed = QpcClock.Now - started;
                 var extra = source is ProcessLoopbackSource pl ? $", target PID {pl.TargetProcessId}" : "";
-                return string.Create(inv, $"- OK: format {sink.Format}, {source.PacketCount} packets / {sink.Frames} frames in {elapsed:F2} s, discontinuities {sink.Discontinuities}, peak {sink.Peak:F4}, first-packet timestamp lag {sink.FirstLagMs:F1} ms{extra}");
+                return string.Create(inv, $"- OK: format {sink.Format}, {source.PacketCount} packets / {sink.Frames} frames in {elapsed:F2} s, discontinuities {sink.Discontinuities}, peak {sink.Peak:F4}, first-packet timestamp lag {sink.FirstLagMs:F1} ms, bytes allocated in capture loop {source.LoopAllocatedBytes}{extra}");
             }
             catch (AudioDeviceException ex)
             {
