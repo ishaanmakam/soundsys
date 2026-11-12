@@ -31,6 +31,14 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Only soundsys.exe starts soundsys. A WPF Application raises Startup as soon as its dispatcher runs, so an App
+        // created anywhere else (a test host) must not touch audio, settings or the network.
+        if (System.Reflection.Assembly.GetEntryAssembly() != typeof(App).Assembly)
+        {
+            return;
+        }
+
         Log.Start();
         _commandLine = CommandLine.Parse(e.Args);
         _instance = SingleInstance.TryAcquire(waitForPrevious: _commandLine.Restarted);

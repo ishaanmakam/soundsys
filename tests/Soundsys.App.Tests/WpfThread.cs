@@ -15,16 +15,23 @@ internal static class WpfThread
 
     public static T Invoke<T>(Func<T> func) => Dispatcher.Value.Invoke(func, DispatcherPriority.Normal, CancellationToken.None, TimeSpan.FromMinutes(2));
 
-    /// <summary>Our App (resources from App.xaml) without running its startup.</summary>
-    public static App EnsureApp()
+    /// <summary>
+    /// A plain Application carrying soundsys's resources (Theme/AppResources.xaml). Never our App class: an Application
+    /// created on a running dispatcher raises Startup immediately, and App's startup would launch the real soundsys.
+    /// </summary>
+    public static Application EnsureApp()
     {
-        if (Application.Current is App app)
+        if (Application.Current is { } app)
         {
+            Assert.IsNotType<App>(app);
             return app;
         }
 
-        app = new App();
-        app.InitializeComponent();
+        app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        app.Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("pack://application:,,,/soundsys;component/Theme/AppResources.xaml", UriKind.Absolute),
+        });
         return app;
     }
 

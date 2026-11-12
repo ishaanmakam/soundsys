@@ -1,0 +1,13 @@
+<!-- Everything App.xaml provides, in one dictionary (tests merge it into a plain Application without starting soundsys). -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:views="clr-namespace:Soundsys.App.Views">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/soundsys;component/Theme/Styles.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+    <views:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+    <views:NotEmptyToVisibilityConverter x:Key="NotEmptyToVisibility" />
+    <views:EnumEqualsConverter x:Key="EnumEquals" />
+    <views:EnumToVisibilityConverter x:Key="EnumToVisible" />
+    <views:NotConverter x:Key="Not" />
+</ResourceDictionary>
