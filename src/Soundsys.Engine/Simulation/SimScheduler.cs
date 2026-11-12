@@ -37,6 +37,11 @@ public sealed class SimScheduler : ITimerScheduler, IDisposable
 
     public void Schedule(double time, Action<double> action)
     {
+        if (!double.IsFinite(time))
+        {
+            throw new ArgumentOutOfRangeException(nameof(time), time, "Simulation events need a finite time.");
+        }
+
         lock (_lock)
         {
             _queue.Enqueue(action, (Math.Max(time, _clock.NowSeconds), _seq++));

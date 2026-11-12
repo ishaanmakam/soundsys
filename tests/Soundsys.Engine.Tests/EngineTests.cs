@@ -33,13 +33,13 @@ public class EngineTests(ITestOutputHelper output)
 
         public void Run(double seconds) => Scheduler.RunFor(seconds);
 
-        public T Await<T>(Task<T> task) => Drive(Scheduler, task);
+        public T Await<T>(Task<T> task) => Drive(Scheduler, task, Engine);
 
         public void Dispose() => Engine.Dispose();
     }
 
     /// <summary>Steps virtual time until the task completes (analysis may finish on the thread pool).</summary>
-    private static T Drive<T>(SimScheduler scheduler, Task<T> task, double maxSeconds = 30)
+    private static T Drive<T>(SimScheduler scheduler, Task<T> task, SyncEngine? engine = null, double maxSeconds = 30)
     {
         var end = scheduler.Now + maxSeconds;
         while (!task.IsCompleted && scheduler.Now < end)
@@ -47,9 +47,10 @@ public class EngineTests(ITestOutputHelper output)
             scheduler.RunFor(0.01);
         }
 
-        if (!task.IsCompleted)
+        if (!task.IsCompleted && !task.Wait(TimeSpan.FromSeconds(10)))
         {
-            task.Wait(TimeSpan.FromSeconds(10));
+            var st = engine?.GetStatus();
+            throw new TimeoutException($"Task not finished after {maxSeconds} virtual s (scheduler now {scheduler.Now:F3}, state {st?.State}, step '{st?.CalibrationStep}', task {task.Status}).");
         }
 
         return task.GetAwaiter().GetResult();
@@ -263,7 +264,7 @@ public class EngineTests(ITestOutputHelper output)
         using var engine = new SyncEngine(backend, scheduler, new InMemorySettingsStore());
         engine.Start();
         scheduler.RunFor(1);
-        var report = Drive(scheduler, engine.CalibrateAsync());
+        var report = Drive(scheduler, engine.CalibrateAsync(), engine);
         output.WriteLine(report.Message);
         Assert.False(report.Success);
         Assert.Equal("Couldn't hear the Bed speaker. Turn it up or move the laptop closer, then try again.", report.Message);
