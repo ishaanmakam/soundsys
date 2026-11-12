@@ -487,3 +487,6 @@ publish/
 *.msix
 *.appx
 TestResults/
+
+# Claude Code local state
+.claude/

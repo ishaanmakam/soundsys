@@ -40,3 +40,7 @@ One line per decision, with the rationale. Newest at the bottom of each section.
 ## Distribution
 - **Release artifact = zip of self-contained single-file `soundsys.exe` + `soundsys-diag.exe` per RID:** no installer prerequisites, works unpackaged, and the README explains SmartScreen "Run anyway".
 - **Version comes from the git tag (`-p:Version=`) in CI:** one source of truth.
+
+## Environment findings
+- **Smart App Control (SAC) is in enforcement mode on the hub laptop** (`VerifiedAndReputablePolicyState=1`). It blocks every unsigned binary we build (`0x800711C7`, CodeIntegrity event 3077), so local test runs and local launches of `soundsys.exe` / `soundsys-diag.exe` fail. **Decision: I did not disable or circumvent SAC (it's a security control the user didn't ask me to change). All tests are verified on GitHub Actions (x64 + arm64 runners, no SAC). Builds and `dotnet format` still run locally.** The user has to choose tomorrow between turning SAC off and getting the binaries signed. See TOMORROW.md step 0.
+- **WSL is not installed** (enabling it needs admin + reboot), so it's not usable as a local test runner tonight.
