@@ -112,6 +112,13 @@ public sealed class TwoRings : FrameworkElement
 
     protected override Size MeasureOverride(Size availableSize) => new(200, 100);
 
+    /// <summary>The geometry depends on the size (rings shrink when a strip shows), so redraw on every resize.</summary>
+    protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
+    {
+        base.OnRenderSizeChanged(sizeInfo);
+        InvalidateVisual();
+    }
+
     protected override void OnRender(DrawingContext dc)
     {
         var w = ActualWidth;

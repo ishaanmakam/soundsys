@@ -75,10 +75,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public partial bool IsEmpty { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStrip))]
     public partial string? ErrorText { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStrip))]
     public partial string? WarningText { get; set; }
+
+    /// <summary>An error or notice strip is showing (Home tightens up so everything still fits).</summary>
+    public bool HasStrip => !string.IsNullOrEmpty(ErrorText) || !string.IsNullOrEmpty(WarningText);
 
     [ObservableProperty]
     public partial RingVisual RingA { get; set; }

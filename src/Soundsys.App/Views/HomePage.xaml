@@ -70,13 +70,37 @@
             </Grid.RowDefinitions>
 
             <!-- The signature: two rings that slide together into one. -->
-            <Button x:Name="Signature" Style="{StaticResource SignatureButton}" HorizontalAlignment="Center" Margin="0,20,0,0"
+            <Button x:Name="Signature" HorizontalAlignment="Center"
                     Command="{Binding ToggleRunCommand}" IsEnabled="{Binding CanToggleRun}"
                     AutomationProperties.Name="{Binding ActionCaption}" AutomationProperties.HelpText="{Binding Headline}">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource SignatureButton}">
+                        <Setter Property="Margin" Value="0,20,0,0" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasStrip}" Value="True">
+                                <Setter Property="Margin" Value="0,8,0,0" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
                 <StackPanel>
-                    <controls:TwoRings Width="240" Height="116" StateA="{Binding RingA}" StateB="{Binding RingB}" IsMerged="{Binding IsMerged}"
+                    <controls:TwoRings StateA="{Binding RingA}" StateB="{Binding RingB}" IsMerged="{Binding IsMerged}"
                                        SignalBrush="{DynamicResource SignalBrush}" SignalSoftBrush="{DynamicResource SignalSoftBrush}"
-                                       MutedBrush="{DynamicResource InkMutedBrush}" AlertBrush="{DynamicResource AlertBrush}" />
+                                       MutedBrush="{DynamicResource InkMutedBrush}" AlertBrush="{DynamicResource AlertBrush}">
+                        <controls:TwoRings.Style>
+                            <Style TargetType="controls:TwoRings">
+                                <Setter Property="Width" Value="240" />
+                                <Setter Property="Height" Value="116" />
+                                <Style.Triggers>
+                                    <!-- A strip is showing: smaller rings so the speaker rows still fit without scrolling. -->
+                                    <DataTrigger Binding="{Binding HasStrip}" Value="True">
+                                        <Setter Property="Width" Value="196" />
+                                        <Setter Property="Height" Value="94" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </controls:TwoRings.Style>
+                    </controls:TwoRings>
                     <TextBlock Text="{Binding ActionCaption}" HorizontalAlignment="Center" Margin="0,10,0,0" FontSize="14" FontWeight="SemiBold">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
