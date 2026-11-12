@@ -144,7 +144,7 @@ public sealed class EndpointCatalog : IDisposable
 
     /// <summary>
     /// Container lookup through Windows.Devices.Enumeration: Bluetooth if any PnP device in the container is enumerated by
-    /// a Bluetooth bus; the container name is the physical device's name. Cached per container until devices change.
+    /// a Bluetooth bus; the container name is the physical device's name. Cached per container for the catalog lifetime.
     /// </summary>
     private ContainerFacts? GetContainerFacts(Guid container)
     {
@@ -198,11 +198,10 @@ public sealed class EndpointCatalog : IDisposable
         }
     }
 
-    private void OnEndpointNotification(bool topologyChanged)
+    private void OnEndpointNotification()
     {
         // Called on an MMDevice COM thread: never call back into the enumerator here, just (re)arm the debounce timer.
-        if (topologyChanged)
-            _containers.Clear();
+        // Container facts (Bluetooth or not, device name) don't change for a container ID, so the cache is kept.
         lock (_watchGate)
         {
             _debounce?.Change(200, Timeout.Infinite);
@@ -243,23 +242,23 @@ public sealed class EndpointCatalog : IDisposable
 
         internal NotificationClient(EndpointCatalog owner) => _owner = new WeakReference<EndpointCatalog>(owner);
 
-        public void OnDeviceStateChanged(string deviceId, DeviceState newState) => Notify(true);
+        public void OnDeviceStateChanged(string deviceId, DeviceState newState) => Notify();
 
-        public void OnDeviceAdded(string pwstrDeviceId) => Notify(true);
+        public void OnDeviceAdded(string pwstrDeviceId) => Notify();
 
-        public void OnDeviceRemoved(string deviceId) => Notify(true);
+        public void OnDeviceRemoved(string deviceId) => Notify();
 
-        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId) => Notify(false);
+        public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId) => Notify();
 
         public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key)
         {
             // Ignored: drivers emit these constantly (levels, jack info) and they don't change the device list.
         }
 
-        private void Notify(bool topologyChanged)
+        private void Notify()
         {
             if (_owner.TryGetTarget(out var owner))
-                owner.OnEndpointNotification(topologyChanged);
+                owner.OnEndpointNotification();
         }
     }
 }
