@@ -86,6 +86,8 @@ public sealed record CalibrationReport(
 public sealed class SyncEngine : IDisposable
 {
     public const double TickSeconds = 0.25;
+    private const double EndpointRefreshSeconds = 5;
+    private const double BatteryRefreshSeconds = 30;
     private const double AutoGrowWindowSeconds = 30;
     private const int AutoGrowUnderruns = 3;
     private const double AutoGrowStepMs = 10;
@@ -116,7 +118,13 @@ public sealed class SyncEngine : IDisposable
     private EngineState _state = EngineState.Stopped;
     private string? _error;
     private string? _calibrationStep;
-    private bool _clickTrack;
+    private bool _clickTrack; // any test signal (click track or diagnostics) replaces the normal source
+    private (ISignal Signal, string Name)? _testSignal;
+    private IReadOnlyList<AudioEndpointInfo> _endpoints = [];
+    private AudioEndpointInfo? _defaultEndpoint;
+    private readonly Dictionary<string, int?> _battery = [];
+    private double _lastEndpointRefresh = double.NegativeInfinity;
+    private double _lastBatteryRefresh = double.NegativeInfinity;
     private bool _autoStartArmed = true;
     private bool _settingsDirty;
     private long _lastUnderrunTotal;
@@ -135,9 +143,11 @@ public sealed class SyncEngine : IDisposable
 
         _backend.DevicesChanged += (_, _) => Enqueue(OnDevicesChanged);
         _backend.PhoneLink.ActivityChanged += (_, e) => Enqueue(now => OnPhoneActivity(e.PhoneId, e.State));
+        RefreshEndpoints(Now);
         FollowMovedSpeakers();
         AutoSelectSpeakers();
         RememberContainers();
+        RefreshBattery(Now);
         _tick = _scheduler.SchedulePeriodic(TickSeconds, Tick);
     }
 
@@ -310,6 +320,7 @@ public sealed class SyncEngine : IDisposable
             }
 
             MarkDirty();
+            RefreshBattery(Now);
             if (_state != EngineState.Stopped)
             {
                 // Re-open both slots on the new selection (the pair's calibration changes too).
@@ -400,6 +411,7 @@ public sealed class SyncEngine : IDisposable
             }
 
             _clickTrack = true;
+            _testSignal = (signal, name);
             StartSource(new GeneratorSource(_scheduler, signal, name), name);
         }
     }
@@ -428,7 +440,7 @@ public sealed class SyncEngine : IDisposable
 
     /// <summary>Speakers the user can choose: Bluetooth first (JBL first among them), then the rest.</summary>
     public IReadOnlyList<AudioEndpointInfo> GetSpeakerChoices() =>
-        _backend.GetSpeakers()
+        Endpoints()
             .OrderByDescending(s => s.IsBluetooth)
             .ThenByDescending(s => IsJbl(s.Name))
             .ThenBy(s => s.State)
@@ -446,19 +458,20 @@ public sealed class SyncEngine : IDisposable
 
     public string DisplayName(string endpointId)
     {
-        var info = _backend.GetSpeakers().FirstOrDefault(s => s.Id == endpointId);
+        var info = Endpoints().FirstOrDefault(s => s.Id == endpointId);
         lock (_lock)
         {
             return Settings.NameFor(endpointId, info?.Name ?? "Speaker");
         }
     }
 
+    /// <summary>Cheap snapshot for 10 Hz polling: endpoints and battery come from caches refreshed on device changes.</summary>
     public EngineStatus GetStatus()
     {
-        var endpoints = _backend.GetSpeakers();
-        var defaultSpeaker = _backend.GetDefaultSpeaker();
         lock (_lock)
         {
+            var endpoints = _endpoints;
+            var defaultSpeaker = _defaultEndpoint;
             var now = Now;
             var speakers = new SpeakerStatus[2];
             for (var i = 0; i < 2; i++)
@@ -482,7 +495,7 @@ public sealed class SyncEngine : IDisposable
                     link,
                     info?.State == EndpointState.Active,
                     link == SpeakerLinkState.Connected && stats.State == ChannelState.Playing,
-                    id is null ? null : _backend.GetBatteryPercent(id),
+                    id is null ? null : _battery.GetValueOrDefault(id),
                     id is null ? 1.0 : Settings.VolumeFor(id),
                     _channels[i].OffsetMs,
                     stats.LatencyErrorMs,
@@ -519,6 +532,14 @@ public sealed class SyncEngine : IDisposable
 
     internal OutputChannel ChannelFor(SpeakerSlot slot) => _channels[(int)slot];
 
+    private IReadOnlyList<AudioEndpointInfo> Endpoints()
+    {
+        lock (_lock)
+        {
+            return _endpoints;
+        }
+    }
+
     internal SourceRouter Router => _router;
 
     // ───────────────────────────── Calibration ─────────────────────────────
@@ -533,6 +554,7 @@ public sealed class SyncEngine : IDisposable
     {
         var plan = new CalibrationPlan();
         string nameA, nameB;
+        (ISignal Signal, string Name)? resumeTest;
         lock (_lock)
         {
             if (_state != EngineState.Running)
@@ -548,6 +570,7 @@ public sealed class SyncEngine : IDisposable
             nameA = Settings.NameFor(Settings.SpeakerAId!, "Speaker 1");
             nameB = Settings.NameFor(Settings.SpeakerBId!, "Speaker 2");
             _state = EngineState.Calibrating;
+            resumeTest = _clickTrack ? _testSignal : null;
             _clickTrack = false;
             _calibrationStep = "Getting ready… keep the room quiet";
             StopSource();
@@ -578,6 +601,7 @@ public sealed class SyncEngine : IDisposable
             lock (_lock)
             {
                 const int rate = 48000;
+                _router.BreakContinuity(); // sweeps must start exactly at w0 (no gap fill before them)
                 var state = _history.ReadState();
                 var w0 = state.SampleRate == rate ? state.Position : 0;
                 var sweepFrames = (long)((plan.SweepSeconds + 0.05) * rate);
@@ -649,7 +673,16 @@ public sealed class SyncEngine : IDisposable
                 if (_state == EngineState.Calibrating)
                 {
                     _state = EngineState.Running;
-                    StartModeSource();
+                    if (resumeTest is { } t)
+                    {
+                        _clickTrack = true;
+                        _testSignal = t;
+                        StartSource(new GeneratorSource(_scheduler, t.Signal, t.Name), t.Name);
+                    }
+                    else
+                    {
+                        StartModeSource();
+                    }
                 }
 
                 SaveIfDirty();
@@ -717,13 +750,25 @@ public sealed class SyncEngine : IDisposable
                 AutoGrowLatency(now);
             }
 
+            if (now - _lastEndpointRefresh > EndpointRefreshSeconds)
+            {
+                RefreshEndpoints(now); // safety net in case a device notification was missed
+            }
+
+            if (now - _lastBatteryRefresh > BatteryRefreshSeconds)
+            {
+                RefreshBattery(now);
+            }
+
             SaveIfDirty();
         }
     }
 
     private void OnDevicesChanged(double now)
     {
+        RefreshEndpoints(now);
         FollowMovedSpeakers();
+        RefreshBattery(now);
         if (_state != EngineState.Stopped)
         {
             for (var i = 0; i < 2; i++)
@@ -737,6 +782,7 @@ public sealed class SyncEngine : IDisposable
         else
         {
             AutoSelectSpeakers();
+            RememberContainers();
             MaybeAutoStart();
         }
 
@@ -750,7 +796,7 @@ public sealed class SyncEngine : IDisposable
             return;
         }
 
-        var speakers = _backend.GetSpeakers();
+        var speakers = _endpoints;
         var bothOn = speakers.Any(s => s.Id == Settings.SpeakerAId && s.State == EndpointState.Active)
                      && speakers.Any(s => s.Id == Settings.SpeakerBId && s.State == EndpointState.Active);
         if (!bothOn)
@@ -949,13 +995,13 @@ public sealed class SyncEngine : IDisposable
         }
     }
 
-    /// <summary>Records the physical-device container of the selected speakers.</summary>
+    /// <summary>Records the physical-device container of the selected Bluetooth speakers.</summary>
     private void RememberContainers()
     {
-        var speakers = _backend.GetSpeakers();
         foreach (var id in new[] { Settings.SpeakerAId, Settings.SpeakerBId })
         {
-            var c = id is null ? null : speakers.FirstOrDefault(s => s.Id == id)?.ContainerId;
+            var info = id is null ? null : _endpoints.FirstOrDefault(s => s.Id == id);
+            var c = info is { IsBluetooth: true } && IsDeviceContainer(info.ContainerId) ? info.ContainerId : null;
             if (id is not null && c is not null && (!Settings.SpeakerContainers.TryGetValue(id, out var old) || old != c))
             {
                 Settings.SpeakerContainers[id] = c;
@@ -971,30 +1017,85 @@ public sealed class SyncEngine : IDisposable
     /// </summary>
     private void FollowMovedSpeakers()
     {
-        var speakers = _backend.GetSpeakers();
+        var speakers = _endpoints;
         foreach (var id in new[] { Settings.SpeakerAId, Settings.SpeakerBId })
         {
-            if (id is null || speakers.Any(s => s.Id == id) || !Settings.SpeakerContainers.TryGetValue(id, out var container))
+            if (id is null || speakers.Any(s => s.Id == id) || !Settings.SpeakerContainers.TryGetValue(id, out var container)
+                || !IsDeviceContainer(container))
             {
                 continue;
             }
 
-            var moved = speakers.FirstOrDefault(s => s.ContainerId == container && s.Id != Settings.SpeakerAId && s.Id != Settings.SpeakerBId);
+            // Only follow to a Bluetooth endpoint of the same physical device that is actually on (no churn while it's off).
+            var moved = speakers.FirstOrDefault(s => s.ContainerId == container && s.IsBluetooth && s.State == EndpointState.Active
+                                                     && s.Id != Settings.SpeakerAId && s.Id != Settings.SpeakerBId);
             if (moved is null)
             {
                 continue;
             }
 
             Settings.MigrateEndpoint(id, moved.Id);
+            var now = Now;
             for (var i = 0; i < 2; i++)
             {
-                if (_activeIds[i] == id)
+                if (_activeIds[i] != id)
                 {
-                    _activeIds[i] = moved.Id;
+                    continue;
+                }
+
+                _activeIds[i] = moved.Id;
+                if (_state != EngineState.Stopped)
+                {
+                    // Reopen on the new endpoint now rather than waiting for the old one to fault.
+                    CloseDevice(i);
+                    _links[i].Stop();
+                    if (_links[i].Start(now))
+                    {
+                        TryOpen(i, now);
+                    }
                 }
             }
 
             MarkDirty();
+        }
+    }
+
+    /// <summary>The local-machine container groups every built-in/wired endpoint, so it doesn't identify a device.</summary>
+    private static bool IsDeviceContainer(string? container) =>
+        !string.IsNullOrEmpty(container) && !container.Contains("ffffffffffff", StringComparison.OrdinalIgnoreCase);
+
+    private void RefreshEndpoints(double now)
+    {
+        _lastEndpointRefresh = now;
+        try
+        {
+            _endpoints = _backend.GetSpeakers();
+            _defaultEndpoint = _backend.GetDefaultSpeaker();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            System.Diagnostics.Trace.TraceError($"soundsys endpoints: {ex.Message}");
+        }
+    }
+
+    private void RefreshBattery(double now)
+    {
+        _lastBatteryRefresh = now;
+        foreach (var id in new[] { Settings.SpeakerAId, Settings.SpeakerBId })
+        {
+            if (id is null)
+            {
+                continue;
+            }
+
+            try
+            {
+                _battery[id] = _backend.GetBatteryPercent(id);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                _battery[id] = null;
+            }
         }
     }
 
@@ -1006,7 +1107,7 @@ public sealed class SyncEngine : IDisposable
         }
 
         // Keep Windows' own order for ties (stable sort): JBLs first, then speakers that are on.
-        var candidates = _backend.GetSpeakers()
+        var candidates = _endpoints
             .Where(s => s.IsBluetooth)
             .OrderByDescending(s => IsJbl(s.Name))
             .ThenBy(s => s.State)

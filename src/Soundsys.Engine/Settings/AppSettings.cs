@@ -69,7 +69,7 @@ public sealed class AppSettings
         {
             if (d.Remove(from, out var v))
             {
-                d[to] = v;
+                d.TryAdd(to, v); // never overwrite what's already known about the new ID
             }
         }
 
@@ -88,7 +88,7 @@ public sealed class AppSettings
             Calibrations.Remove(key);
             Move(cal.OffsetsMs, oldId, newId);
             Move(cal.MeasuredLatencyMs, oldId, newId);
-            Calibrations[PairKey(parts[0] == oldId ? newId : parts[0], parts[1] == oldId ? newId : parts[1])] = cal;
+            Calibrations.TryAdd(PairKey(parts[0] == oldId ? newId : parts[0], parts[1] == oldId ? newId : parts[1]), cal);
         }
 
         if (SpeakerAId == oldId)

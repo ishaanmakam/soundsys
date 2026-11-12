@@ -386,6 +386,50 @@ public class EngineTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void Running_speaker_whose_endpoint_id_changes_reopens_on_the_new_id()
+    {
+        using var rig = new Rig(new AppSettings { Mode = SourceMode.Laptop });
+        rig.Engine.Start();
+        rig.Run(1);
+        rig.Backend.ReplaceSpeakerEndpoint(Bed, "sim:jbl-charge-5-new-stack");
+        rig.Run(1);
+        var status = rig.Engine.GetStatus();
+        Assert.Equal("sim:jbl-charge-5-new-stack", status.Speakers[1].EndpointId);
+        Assert.True(status.Speakers[1].Playing);
+        Assert.Equal("Bed", status.Speakers[1].Name);
+    }
+
+    [Fact]
+    public void Calibration_resumes_a_running_test_signal()
+    {
+        using var rig = new Rig(new AppSettings { Mode = SourceMode.Laptop });
+        rig.Engine.Start();
+        rig.Run(1);
+        rig.Engine.StartClickTrack();
+        rig.Run(1);
+        var report = rig.Await(rig.Engine.MeasureSyncAsync());
+        Assert.True(report.Success, report.Message);
+        rig.Run(1);
+        var status = rig.Engine.GetStatus();
+        Assert.True(status.ClickTrack);
+        Assert.Equal("Playing the click track on Desk + Bed", status.Headline);
+    }
+
+    [Fact]
+    public void Calibration_right_after_music_hears_full_sweeps()
+    {
+        // Music plays right up to calibration; the sweeps must land inside their pass windows (full quality).
+        using var rig = new Rig(new AppSettings { Mode = SourceMode.Laptop });
+        rig.Engine.Start();
+        rig.Run(3);
+        var report = rig.Await(rig.Engine.CalibrateAsync());
+        output.WriteLine($"quality {report.QualityADb:F1}/{report.QualityBDb:F1} dB, rel {report.RelativeMs:F2} ms");
+        Assert.True(report.Success, report.Message);
+        Assert.InRange(report.RelativeMs!.Value, 57, 61);
+        Assert.True(report.QualityADb > 55 && report.QualityBDb > 55);
+    }
+
+    [Fact]
     public void Warns_when_windows_plays_straight_to_a_chosen_speaker()
     {
         var world = new SimWorld { DefaultSpeakerId = Desk };

@@ -66,6 +66,12 @@ public sealed class SourceRouter : ISourceSink
         _format = format;
     }
 
+    /// <summary>
+    /// The next source starts a new timeline segment (no gap fill), so its first frame lands exactly at the current writer
+    /// position. Calibration uses this to know where its sweeps are in the stream.
+    /// </summary>
+    public void BreakContinuity() => _expectedNext = double.NaN;
+
     public void Write(ReadOnlySpan<float> interleaved, double timestampSeconds, bool discontinuity)
     {
         var channels = _format.Channels;

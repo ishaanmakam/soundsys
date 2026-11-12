@@ -157,15 +157,23 @@ public sealed class SimulatedBackend : IAudioBackend
     /// <summary>Simulates Windows giving a speaker a new endpoint ID (driver stack change / re-pair); the physical device is the same.</summary>
     public void ReplaceSpeakerEndpoint(string oldId, string newId)
     {
+        SimulatedOutputDevice? old;
         lock (_lock)
         {
             var i = _world.Speakers.FindIndex(s => s.Options.Id == oldId);
+            if (i < 0)
+            {
+                throw new ArgumentException($"No simulated speaker '{oldId}'.", nameof(oldId));
+            }
+
             var e = _world.Speakers[i];
             _world.Speakers[i] = (e.Options with { Id = newId, ContainerId = e.Options.ContainerId ?? oldId }, e.Available, e.Battery);
             _available[newId] = _available[oldId];
             _available.Remove(oldId);
+            _running.Remove(oldId, out old);
         }
 
+        old?.SimulateDisconnect(); // like Windows: the old endpoint goes away
         DevicesChanged?.Invoke(this, EventArgs.Empty);
     }
 
