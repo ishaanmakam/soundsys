@@ -125,17 +125,29 @@ public static class EndpointClassifier
         }
 
         if (!string.IsNullOrWhiteSpace(e.FriendlyName) && !string.Equals(e.FriendlyName, "Unknown", StringComparison.Ordinal))
-            return e.FriendlyName.Trim();
+            return StripDriverSuffix(e.FriendlyName.Trim());
         if (!string.IsNullOrWhiteSpace(e.DeviceDescription) && !string.IsNullOrWhiteSpace(e.InterfaceName))
             return $"{e.DeviceDescription.Trim()} ({e.InterfaceName.Trim()})";
         return e.DeviceDescription?.Trim() is { Length: > 0 } d ? d : "Audio device";
+    }
+
+    /// <summary>"Speakers (2- Qualcomm(R) Aqstic(TM) ACX Static Endpoints Audio Device)" → "Speakers"; "Speakers (JBL Flip 6)" is kept.</summary>
+    public static string StripDriverSuffix(string friendlyName)
+    {
+        var open = friendlyName.IndexOf(" (", StringComparison.Ordinal);
+        if (open <= 0 || !friendlyName.EndsWith(')'))
+            return friendlyName;
+        var inner = friendlyName[(open + 2)..^1];
+        return LooksLikeDriverName(inner) ? friendlyName[..open].Trim() : friendlyName;
     }
 
     private static bool LooksLikeDriverName(string name)
         => name.Contains("(R)", StringComparison.Ordinal)
            || name.Contains("(TM)", StringComparison.Ordinal)
            || name.Contains("Audio Device", StringComparison.OrdinalIgnoreCase)
-           || name.Contains("A2dp", StringComparison.OrdinalIgnoreCase);
+           || name.Contains("A2dp", StringComparison.OrdinalIgnoreCase)
+           || name.Contains("SoundWire", StringComparison.OrdinalIgnoreCase)
+           || name.Contains("High Definition Audio", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Speaker list: every active endpoint, plus Bluetooth endpoints that are paired but off (Unavailable).

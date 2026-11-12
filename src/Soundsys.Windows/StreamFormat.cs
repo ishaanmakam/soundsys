@@ -95,19 +95,19 @@ public static class FormatNegotiation
                 new ReadOnlySpan<float>(source, destination.Length).CopyTo(destination);
                 break;
             case SampleKind.Int16:
-            {
-                var s = (short*)source;
-                for (var i = 0; i < destination.Length; i++)
-                    destination[i] = s[i] * (1f / 32768f);
-                break;
-            }
+                {
+                    var s = (short*)source;
+                    for (var i = 0; i < destination.Length; i++)
+                        destination[i] = s[i] * (1f / 32768f);
+                    break;
+                }
             case SampleKind.Int32:
-            {
-                var s = (int*)source;
-                for (var i = 0; i < destination.Length; i++)
-                    destination[i] = s[i] * (1f / 2147483648f);
-                break;
-            }
+                {
+                    var s = (int*)source;
+                    for (var i = 0; i < destination.Length; i++)
+                        destination[i] = s[i] * (1f / 2147483648f);
+                    break;
+                }
             default:
                 destination.Clear();
                 break;
