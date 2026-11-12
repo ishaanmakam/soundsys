@@ -83,10 +83,18 @@ public class DriftSimulationTests(ITestOutputHelper output)
             new[] { 20.0, 40.0, 60.0, 80.0 }.Any(e => t >= e && t < e + 1.5);
         var report = rig.Alignment(10, 120, Disturbed);
         output.WriteLine($"Alignment outside disturbances: {report}");
+        for (var t0 = 10.0; t0 < 120; t0 += 5)
+        {
+            output.WriteLine($"  [{t0,5:F0}, {t0 + 5,5:F0}) {rig.Alignment(t0, t0 + 5, Disturbed)}");
+        }
+
+        output.WriteLine($"Desk stats {rig.ChannelA.GetStats()}");
+        output.WriteLine($"Bed stats  {rig.ChannelB.GetStats()}");
         output.WriteLine($"Router gap frames filled: {rig.Router.GapFrames}");
         output.WriteLine($"Desk glitches {rig.DeviceA.Glitches}, Bed glitches {rig.DeviceB.Glitches}");
 
-        Assert.True(report.MaxAbsErrorMs < 0.25, report.ToString());
+        Assert.True(report.MaxAbsErrorMs < 0.25, string.Join("
+", Enumerable.Range(0, 22).Select(k => $"[{10 + (5 * k)}s] {rig.Alignment(10 + (5 * k), 15 + (5 * k), Disturbed)}")));
         Assert.True(rig.Router.GapFrames > 0.5 * 48000 * 0.55, "lost inbound audio should be replaced with silence");
 
         // Bed's 60 ms stall starves only Bed's endpoint; Desk never glitches.

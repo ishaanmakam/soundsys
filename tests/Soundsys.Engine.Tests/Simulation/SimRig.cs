@@ -48,9 +48,9 @@ internal sealed class BlockRecorder(OutputChannel channel, double acousticLatenc
     }
 }
 
-internal sealed record AlignmentReport(double MaxAbsErrorMs, double MeanAbsErrorMs, int Samples, int SilentSamples)
+internal sealed record AlignmentReport(double MaxAbsErrorMs, double MeanAbsErrorMs, int Samples, int SilentSamples, double TimeOfMax, double SignedErrorAtMax)
 {
-    public override string ToString() => $"max |err| {MaxAbsErrorMs:F4} ms, mean |err| {MeanAbsErrorMs:F4} ms over {Samples} blocks ({SilentSamples} silent)";
+    public override string ToString() => $"max |err| {MaxAbsErrorMs:F4} ms (at t={TimeOfMax:F2} s, A−B {SignedErrorAtMax:+0.0000;-0.0000} ms), mean |err| {MeanAbsErrorMs:F4} ms over {Samples} blocks ({SilentSamples} silent)";
 }
 
 /// <summary>source → router → shared history → two channels → two simulated speakers, on virtual time.</summary>
@@ -103,7 +103,7 @@ internal sealed class SimRig
     /// <summary>Compares what both speakers emit at the same acoustic instant, for B's blocks heard in [from, to).</summary>
     public AlignmentReport Alignment(double from, double to, Func<double, bool>? exclude = null)
     {
-        double max = 0, sum = 0;
+        double max = 0, sum = 0, tMax = double.NaN, signedMax = 0;
         int n = 0, silent = 0;
         for (var i = 0; i < RecorderB.HeardAt.Count; i++)
         {
@@ -120,12 +120,19 @@ internal sealed class SimRig
                 continue;
             }
 
-            var err = Math.Abs(pa - RecorderB.Position[i]) / SourceRate * 1000.0;
-            max = Math.Max(max, err);
+            var signed = (pa - RecorderB.Position[i]) / SourceRate * 1000.0;
+            var err = Math.Abs(signed);
+            if (err > max)
+            {
+                max = err;
+                tMax = t;
+                signedMax = signed;
+            }
+
             sum += err;
             n++;
         }
 
-        return new AlignmentReport(max, n == 0 ? double.NaN : sum / n, n, silent);
+        return new AlignmentReport(max, n == 0 ? double.NaN : sum / n, n, silent, tMax, signedMax);
     }
 }
