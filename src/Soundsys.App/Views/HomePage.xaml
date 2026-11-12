@@ -94,8 +94,11 @@
                                 <Style.Triggers>
                                     <!-- A strip is showing: smaller rings so the speaker rows still fit without scrolling. -->
                                     <DataTrigger Binding="{Binding HasStrip}" Value="True">
-                                        <Setter Property="Width" Value="196" />
-                                        <Setter Property="Height" Value="94" />
+                                        <Setter Property="LayoutTransform">
+                                            <Setter.Value>
+                                                <ScaleTransform ScaleX="0.82" ScaleY="0.82" />
+                                            </Setter.Value>
+                                        </Setter>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
