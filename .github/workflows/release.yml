@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Test
+        run: dotnet test soundsys.slnx -c Release --logger "console;verbosity=minimal"
+
+  package:
+    needs: test
+    strategy:
+      matrix:
+        rid: [win-arm64, win-x64]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Publish self-contained single-file (${{ matrix.rid }})
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $out = "out/soundsys"
+          $common = @('-c', 'Release', '-r', '${{ matrix.rid }}', '--self-contained', '-p:PublishSingleFile=true',
+                      '-p:IncludeNativeLibrariesForSelfExtract=true', '-p:DebugType=none', "-p:Version=$version", '-o', $out)
+          dotnet publish src/Soundsys.App/Soundsys.App.csproj @common
+          dotnet publish src/Soundsys.Diag/Soundsys.Diag.csproj @common
+          Copy-Item LICENSE "$out/LICENSE.txt"
+          Copy-Item docs/TOMORROW.md "$out/FIRST-TIME-SETUP.md"
+          Get-ChildItem $out
+          $zip = "soundsys-$version-${{ matrix.rid }}.zip"
+          Compress-Archive -Path "$out/*" -DestinationPath $zip
+          (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower() + "  " + $zip | Out-File -Encoding ascii "$zip.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soundsys-${{ matrix.rid }}
+          path: |
+            soundsys-*.zip
+            soundsys-*.zip.sha256
+
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          pre=""
+          if [[ "$version" == *-* ]]; then pre="--prerelease"; fi
+          {
+            echo "## soundsys $version"
+            echo
+            echo "Download the zip for your laptop: **win-arm64** (Snapdragon / Surface Laptop 7+) or **win-x64** (Intel/AMD)."
+            echo "Unzip anywhere, run \`soundsys.exe\`. Hardware checks: \`soundsys-diag.exe\`."
+            echo
+            echo "> These builds are not code-signed. Windows SmartScreen may show \"Windows protected your PC\": click **More info → Run anyway**."
+            echo "> If **Smart App Control** is on, Windows will block unsigned apps entirely; see the README's Troubleshooting section."
+            echo
+            echo "SHA-256:"
+            echo '```'
+            cat dist/*.sha256
+            echo '```'
+          } > notes.md
+          gh release create "$tag" dist/*.zip dist/*.sha256 --title "soundsys $version" --notes-file notes.md $pre --verify-tag

@@ -34,6 +34,7 @@ jobs:
           - os: windows-11-arm
             rid: win-arm64
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     name: build + test (${{ matrix.rid }})
     steps:
       - uses: actions/checkout@v4
@@ -43,7 +44,7 @@ jobs:
       - name: Build
         run: dotnet build soundsys.slnx -c Release
       - name: Test
-        run: dotnet test soundsys.slnx -c Release --no-build --logger "trx;LogFilePrefix=${{ matrix.rid }}" --logger "console;verbosity=normal" --results-directory TestResults
+        run: dotnet test soundsys.slnx -c Release --no-build --logger "trx;LogFilePrefix=${{ matrix.rid }}" --logger "console;verbosity=normal" --results-directory TestResults --blame-hang-timeout 4m --blame-hang-dump-type none
       - name: Publish smoke (self-contained, ${{ matrix.rid }})
         shell: pwsh
         run: |
