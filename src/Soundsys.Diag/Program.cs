@@ -1,8 +1,27 @@
+using System.Reflection;
+using System.Text;
 using Soundsys.Diag;
 
-// Minimal dispatcher; the hardware-check commands are added in a later phase.
-if (args.Length > 0 && args[0] == ProbeCommand.Name)
-    return await ProbeCommand.RunAsync(args[1..]);
+Console.OutputEncoding = Encoding.UTF8;
 
-Console.WriteLine("Usage: soundsys-diag probe [--out <file>] [--no-phone-start]");
-return args.Length == 0 ? 0 : 2;
+if (args.Length > 0 && args[0] == ProbeCommand.Name)
+{
+    return await ProbeCommand.RunAsync(args[1..]);
+}
+
+if (args.Length > 0 && args[0] is "-h" or "--help" or "help")
+{
+    Console.WriteLine(RunCommand.Usage);
+    return 0;
+}
+
+return await RunCommand.RunAsync(args);
+
+namespace Soundsys.Diag
+{
+    internal static partial class Program
+    {
+        public static string Version =>
+            typeof(RunCommand).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "dev";
+    }
+}

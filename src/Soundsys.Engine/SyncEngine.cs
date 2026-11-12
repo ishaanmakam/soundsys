@@ -55,6 +55,16 @@ public sealed record EngineStatus(
     double BaseLatencyMs,
     double SyncMs);
 
+/// <summary>Raw engine counters for diagnostics (soundsys-diag).</summary>
+public sealed record EngineDiagnostics(
+    ChannelStats A,
+    ChannelStats B,
+    long SourcePackets,
+    long GapFramesFilled,
+    double SourceLevel,
+    double BaseLatencyMs,
+    string? SourceName);
+
 /// <summary>Result of auto-calibration, with plain-English message and the numbers.</summary>
 public sealed record CalibrationReport(
     bool Success,
@@ -374,7 +384,10 @@ public sealed class SyncEngine : IDisposable
         }
     }
 
-    public void StartClickTrack()
+    public void StartClickTrack() => StartTestSignal(new ClickTrackSignal(), "Click track");
+
+    /// <summary>Plays a generated signal on both speakers instead of the phone/laptop (click track, diagnostics).</summary>
+    public void StartTestSignal(ISignal signal, string name)
     {
         lock (_lock)
         {
@@ -384,9 +397,12 @@ public sealed class SyncEngine : IDisposable
             }
 
             _clickTrack = true;
-            StartSource(new GeneratorSource(_scheduler, new ClickTrackSignal(), "Click track"), "Click track");
+            StartSource(new GeneratorSource(_scheduler, signal, name), name);
         }
     }
+
+    /// <summary>Stops a test signal started by <see cref="StartTestSignal"/> and returns to the normal source.</summary>
+    public void StopTestSignal() => StopClickTrack();
 
     public void StopClickTrack()
     {
@@ -489,6 +505,15 @@ public sealed class SyncEngine : IDisposable
         }
     }
 
+    public EngineDiagnostics GetDiagnostics()
+    {
+        lock (_lock)
+        {
+            return new EngineDiagnostics(_channels[0].GetStats(), _channels[1].GetStats(), _router.Packets, _router.GapFrames,
+                _router.Level, _shared.BaseLatencyMs, _sourceName);
+        }
+    }
+
     internal OutputChannel ChannelFor(SpeakerSlot slot) => _channels[(int)slot];
 
     internal SourceRouter Router => _router;
@@ -496,7 +521,12 @@ public sealed class SyncEngine : IDisposable
     // ───────────────────────────── Calibration ─────────────────────────────
 
     /// <summary>Plays a sweep on each speaker in turn, listens with the laptop mic, and sets the per-speaker delays.</summary>
-    public async Task<CalibrationReport> CalibrateAsync(CancellationToken cancellationToken = default)
+    public Task<CalibrationReport> CalibrateAsync(CancellationToken cancellationToken = default) => CalibrateCoreAsync(apply: true, cancellationToken);
+
+    /// <summary>Same measurement as <see cref="CalibrateAsync"/> but leaves the delays unchanged (drift logging).</summary>
+    public Task<CalibrationReport> MeasureSyncAsync(CancellationToken cancellationToken = default) => CalibrateCoreAsync(apply: false, cancellationToken);
+
+    private async Task<CalibrationReport> CalibrateCoreAsync(bool apply, CancellationToken cancellationToken)
     {
         var plan = new CalibrationPlan();
         string nameA, nameB;
@@ -584,13 +614,19 @@ public sealed class SyncEngine : IDisposable
             lock (_lock)
             {
                 var (curA, curB) = CurrentOffsets();
-                var (offA, offB) = Calibrator.ComputeOffsets(curA, curB, analysis.RelativeDelayMs);
-                SetOffsets(offA, offB, "auto", (analysis.A.LatencySeconds * 1000, analysis.B.LatencySeconds * 1000));
+                var (offA, offB) = apply ? Calibrator.ComputeOffsets(curA, curB, analysis.RelativeDelayMs) : (curA, curB);
+                if (apply)
+                {
+                    SetOffsets(offA, offB, "auto", (analysis.A.LatencySeconds * 1000, analysis.B.LatencySeconds * 1000));
+                }
+
                 var later = analysis.RelativeDelayMs >= 0 ? nameB : nameA;
                 var earlier = analysis.RelativeDelayMs >= 0 ? nameA : nameB;
                 var message = Math.Abs(analysis.RelativeDelayMs) < 1
                     ? "Your speakers were already in sync."
-                    : $"{later} was {Math.Abs(analysis.RelativeDelayMs):F0} ms behind, so {earlier} now waits for it.";
+                    : apply
+                        ? $"{later} was {Math.Abs(analysis.RelativeDelayMs):F0} ms behind, so {earlier} now waits for it."
+                        : $"{later} is {Math.Abs(analysis.RelativeDelayMs):F1} ms behind {earlier}.";
                 return new CalibrationReport(true, message, analysis.A.LatencySeconds * 1000, analysis.B.LatencySeconds * 1000,
                     analysis.RelativeDelayMs, offA, offB, analysis.A.QualityDb, analysis.B.QualityDb);
             }

@@ -376,6 +376,46 @@ public class EngineTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void Switching_sources_does_not_disturb_speaker_alignment()
+    {
+        using var rig = new Rig(new AppSettings { Mode = SourceMode.Laptop });
+        rig.Engine.SetManualSync(-59);
+        var recorders = new Dictionary<string, BlockRecorder>();
+        rig.Backend.OutputCreated += (_, device) =>
+        {
+            var rec = new BlockRecorder(rig.Engine.ChannelFor(device.Id == Desk ? SpeakerSlot.A : SpeakerSlot.B), device.Options.AcousticLatencyMs / 1000);
+            recorders[device.Id] = rec;
+            device.AddObserver(rec);
+        };
+        rig.Engine.Start();
+        rig.Run(5);
+        for (var k = 0; k < 4; k++)
+        {
+            rig.Engine.StartTestSignal(new MusicLikeSignal(), "Test music");
+            rig.Run(1.5);
+            rig.Engine.StopTestSignal();
+            rig.Run(1.5);
+        }
+
+        var a = recorders[Desk];
+        var b = recorders[Bed];
+        double max = 0;
+        for (var i = 0; i < b.HeardAt.Count; i++)
+        {
+            var pa = a.PositionAt(b.HeardAt[i]);
+            if (b.HeardAt[i] > 3 && !double.IsNaN(pa))
+            {
+                max = Math.Max(max, Math.Abs(pa - b.Position[i]) / 48000 * 1000);
+            }
+        }
+
+        var diag = rig.Engine.GetDiagnostics();
+        output.WriteLine($"Across 8 source switches: max |err| {max:F4} ms; jumps {diag.A.Jumps}/{diag.B.Jumps}; corrections {diag.A.CorrectionPpm:F0}/{diag.B.CorrectionPpm:F0} ppm");
+        Assert.True(max < 0.25, $"max {max:F4} ms");
+        Assert.InRange(diag.A.CorrectionPpm, -100, 100); // nothing saturated
+    }
+
+    [Fact]
     public void Click_track_replaces_the_source_and_restores_it()
     {
         using var rig = new Rig(new AppSettings { Mode = SourceMode.Laptop });
