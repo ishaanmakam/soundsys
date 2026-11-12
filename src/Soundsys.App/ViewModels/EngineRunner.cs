@@ -12,11 +12,16 @@ public sealed class EngineRunner(SyncEngine engine, Action<string> reportError)
 {
     public const string UnexpectedMessage = "Something went wrong. Try again, and restart soundsys if it keeps happening.";
 
+    // Engine calls run one at a time, in the order the UI issued them (SemaphoreSlim releases async waiters FIFO), so a
+    // fast slider drag or a Start quickly followed by Stop can't reach the engine out of order.
+    private readonly SemaphoreSlim _serial = new(1, 1);
+
     public SyncEngine Engine => engine;
 
     /// <summary>Runs <paramref name="action"/> on the thread pool. Returns false (and shows a plain message) if it threw.</summary>
     public async Task<bool> RunAsync(Action<SyncEngine> action)
     {
+        await _serial.WaitAsync();
         try
         {
             await Task.Run(() => action(engine));
@@ -27,10 +32,15 @@ public sealed class EngineRunner(SyncEngine engine, Action<string> reportError)
             reportError(Describe(ex));
             return false;
         }
+        finally
+        {
+            _serial.Release();
+        }
     }
 
     public async Task<T?> RunAsync<T>(Func<SyncEngine, T> func)
     {
+        await _serial.WaitAsync();
         try
         {
             return await Task.Run(() => func(engine));
@@ -40,13 +50,34 @@ public sealed class EngineRunner(SyncEngine engine, Action<string> reportError)
             reportError(Describe(ex));
             return default;
         }
+        finally
+        {
+            _serial.Release();
+        }
     }
 
+    /// <summary>Long-running engine work (calibration): only its start is serialised, so sliders keep working meanwhile.</summary>
     public async Task<T?> RunTaskAsync<T>(Func<SyncEngine, Task<T>> func)
     {
+        Task<T> pending;
+        await _serial.WaitAsync();
         try
         {
-            return await Task.Run(() => func(engine));
+            pending = await Task.Run(() => Task.FromResult(func(engine)));
+        }
+        catch (Exception ex)
+        {
+            reportError(Describe(ex));
+            return default;
+        }
+        finally
+        {
+            _serial.Release();
+        }
+
+        try
+        {
+            return await pending;
         }
         catch (Exception ex)
         {
