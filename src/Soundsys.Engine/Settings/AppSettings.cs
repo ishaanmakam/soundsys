@@ -34,6 +34,9 @@ public sealed class AppSettings
     public string? SpeakerAId { get; set; }
     public string? SpeakerBId { get; set; }
 
+    /// <summary>Physical-device container per selected endpoint ID, so a speaker whose endpoint ID changes is still recognised.</summary>
+    public Dictionary<string, string> SpeakerContainers { get; set; } = [];
+
     /// <summary>User-chosen names per endpoint ID ("Desk", "Bed").</summary>
     public Dictionary<string, string> SpeakerNames { get; set; } = [];
 
@@ -58,6 +61,46 @@ public sealed class AppSettings
     public PlaybackSuppression LaptopSuppression { get; set; } = PlaybackSuppression.None;
     public double BaseLatencyMs { get; set; } = 50;
     public DateTimeOffset? LastUpdateCheck { get; set; }
+
+    /// <summary>Moves everything remembered about <paramref name="oldId"/> to <paramref name="newId"/> (same physical speaker).</summary>
+    public void MigrateEndpoint(string oldId, string newId)
+    {
+        static void Move<T>(Dictionary<string, T> d, string from, string to)
+        {
+            if (d.Remove(from, out var v))
+            {
+                d.TryAdd(to, v); // never overwrite what's already known about the new ID
+            }
+        }
+
+        Move(SpeakerNames, oldId, newId);
+        Move(SpeakerVolumes, oldId, newId);
+        Move(SpeakerContainers, oldId, newId);
+        foreach (var key in Calibrations.Keys.ToList())
+        {
+            var parts = key.Split('|');
+            if (parts.Length != 2 || (parts[0] != oldId && parts[1] != oldId))
+            {
+                continue;
+            }
+
+            var cal = Calibrations[key];
+            Calibrations.Remove(key);
+            Move(cal.OffsetsMs, oldId, newId);
+            Move(cal.MeasuredLatencyMs, oldId, newId);
+            Calibrations.TryAdd(PairKey(parts[0] == oldId ? newId : parts[0], parts[1] == oldId ? newId : parts[1]), cal);
+        }
+
+        if (SpeakerAId == oldId)
+        {
+            SpeakerAId = newId;
+        }
+
+        if (SpeakerBId == oldId)
+        {
+            SpeakerBId = newId;
+        }
+    }
 
     /// <summary>Order-independent key for a speaker pair.</summary>
     public static string PairKey(string a, string b) => string.CompareOrdinal(a, b) <= 0 ? $"{a}|{b}" : $"{b}|{a}";

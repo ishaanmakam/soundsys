@@ -57,11 +57,20 @@ public sealed class SourceRouter : ISourceSink
         if (state.SampleRate != format.SampleRate)
         {
             _history.Reset(format.SampleRate);
+            _expectedNext = double.NaN;
         }
 
+        // Same rate (e.g. switching phone → calibration sweep → phone): keep the timeline continuous. The gap between
+        // the old source's last frame and the new source's first is filled with silence like any capture gap, so every
+        // speaker keeps a consistent position↔time mapping and nobody has to slew or jump.
         _format = format;
-        _expectedNext = double.NaN;
     }
+
+    /// <summary>
+    /// The next source starts a new timeline segment (no gap fill), so its first frame lands exactly at the current writer
+    /// position. Calibration uses this to know where its sweeps are in the stream.
+    /// </summary>
+    public void BreakContinuity() => _expectedNext = double.NaN;
 
     public void Write(ReadOnlySpan<float> interleaved, double timestampSeconds, bool discontinuity)
     {

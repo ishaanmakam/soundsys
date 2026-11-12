@@ -8,6 +8,9 @@ public sealed record SimSpeakerOptions
     public required string Id { get; init; }
     public required string Name { get; init; }
     public bool IsBluetooth { get; init; } = true;
+
+    /// <summary>Physical-device container (stable across endpoint ID changes); defaults to <see cref="Id"/>.</summary>
+    public string? ContainerId { get; init; }
     public int SampleRate { get; init; } = 48000;
     public int Channels { get; init; } = 2;
 

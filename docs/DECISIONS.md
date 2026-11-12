@@ -42,6 +42,8 @@ One line per decision, with the rationale. Newest at the bottom of each section.
 - **Speaker list collapses Bluetooth duplicates per container and hides HFP when A2DP exists. Recommend matching saved speakers by ContainerId:** one physical speaker can have several endpoint IDs across driver stacks.
 - **AudioPlaybackConnection: `StartAsync` on enable, plus one ~10 s `OpenAsync` attempt with backoff (`AutoOpen`). No periodic background paging:** paging an absent phone ties up the shared radio that also carries both speaker streams. `Release` re-creates and re-starts without opening, so the phone can come back on its own.
 - **Suppression only toggles mute, never volume. It leaves a marker file so a crash can be undone at next start, and never "restores" a mute the user had set themselves.**
+
+## UI / app
 - **Status polled at 10 Hz from atomic engine counters:** meets "every action reflected within 1 s" without RT-thread events.
 - **Simulated-devices toggle hidden behind 5 clicks on the version label:** it's a dev option that shouldn't confuse normal use.
 - **Settings JSON in %LOCALAPPDATA% with atomic replace:** no registry clutter, survives crashes.
@@ -51,7 +53,7 @@ One line per decision, with the rationale. Newest at the bottom of each section.
 - **Version comes from the git tag (`-p:Version=`) in CI:** one source of truth.
 
 ## Environment findings
-- **Smart App Control (SAC) is in enforcement mode on the hub laptop** (`VerifiedAndReputablePolicyState=1`). It blocks every unsigned binary we build (`0x800711C7`, CodeIntegrity event 3077), so local test runs and local launches of `soundsys.exe` / `soundsys-diag.exe` fail. **Decision: I did not disable or circumvent SAC (it's a security control the user didn't ask me to change). All tests are verified on GitHub Actions (x64 + arm64 runners, no SAC). Builds and `dotnet format` still run locally.** The user has to choose tomorrow between turning SAC off and getting the binaries signed. See TOMORROW.md step 0.
+- **Smart App Control (SAC) is in enforcement mode on the hub laptop** (`VerifiedAndReputablePolicyState=1`). It judges each unsigned binary separately (cloud reputation). Tonight it blocked `Soundsys.Engine.Tests.dll` (0x800711C7, CodeIntegrity event 3077) every time, but allowed `soundsys-diag.exe` and the Windows test DLL. **Decision: I didn't disable or circumvent SAC. CI (x64 + arm64 runners, no SAC) is the source of truth for tests. Local runs are used only where SAC allows them** (the simulated diag ran locally). The user decides tomorrow (TOMORROW.md step 0); release zips downloaded from the internet are the most likely to be blocked.
 - **WSL is not installed** (enabling it needs admin + reboot), so it's not usable as a local test runner tonight.
 
 ## UI (Phase 4)
@@ -71,3 +73,13 @@ One line per decision, with the rationale. Newest at the bottom of each section.
 - **Poll at 10 Hz while the window is visible, 2 Hz while hidden** (tray icon/tooltip still update within a second).
 - **Tests never construct `App`:** a WPF Application created on a running dispatcher raises Startup at once, which would start soundsys (real backend) inside the test host. Tests use a plain `Application` with `Theme/AppResources.xaml`, and `App.OnStartup` returns early unless soundsys.exe is the entry assembly.
 - **Screenshots render the real `MainView` over real view models and the simulated engine (virtual time), at 400 × 660 and 2× pixels, light and dark; Mica is approximated with #F3F3F3 / #202020** (RenderTargetBitmap can't capture the backdrop).
+
+## Added during the night
+- **Drift controller gain-scheduled (5× faster for the first 30 s, then nominal):** the cold-start integrator caused a 0.34 ms acquisition transient that took about 40 s to decay (CI evidence). The faster start brings it to about 0.05 ms, and rejoins keep the learned drift.
+- **The source router keeps the timeline continuous across source switches at the same rate:** after a switch (phone → calibration sweep → phone, test music), the gap is filled with silence like any capture dropout. Before this, each switch shifted the position↔time map, so both drift controllers saturated (−1000 ppm) and the speakers drifted apart by up to 1.3 ms (seen in the simulated diag drift log). Now 0.08 ms.
+- **Seqlock reader is time-bounded (1 ms):** a preempted capture thread can never stall a real-time render thread. At worst, one callback sees a momentarily torn (but individually atomic) state.
+- **Tests drive simulated time with no SynchronizationContext:** under xUnit's context, `ConfigureAwait(false)` continuations go to the thread pool and virtual time races ahead of them (root cause of a CI hang). The app's timer and simulation threads have no context, so this matches production.
+- **Saved speakers follow the physical device (ContainerId):** the probe showed Bluetooth endpoints change ID across driver stacks (BTHENUM vs Qualcomm QCASD). Names, volumes and calibration migrate automatically.
+- **soundsys-diag waits by detection, never key presses, and a simulated operator performs the physical actions with `--simulated`:** the whole hardware flow runs unattended in CI on every push. It uses the app's real settings file, so calibration and the chosen suppression carry over to the app.
+- **Diag suppression test order: phone session mute first, then laptop output mute:** session mute is less intrusive. Both are verified to keep capture working before they're saved, and both are restored immediately.
+- **Two-tone check bypasses the engine (two raw WASAPI streams):** it isolates the key hardware question (can the radio and driver run two A2DP sinks at once) from engine behaviour.

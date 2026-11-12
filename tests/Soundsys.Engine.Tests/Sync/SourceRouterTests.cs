@@ -79,6 +79,19 @@ public class SourceRouterTests
     }
 
     [Fact]
+    public void Switching_sources_at_the_same_rate_keeps_the_timeline_continuous()
+    {
+        var history = new HistoryBuffer(1 << 14);
+        var router = new SourceRouter(history);
+        router.OnFormat(new AudioFormat(48000, 2));
+        router.Write(new float[960], 0.00, false);       // old source ends at 0.01
+        router.OnFormat(new AudioFormat(48000, 1));      // new source, same rate
+        router.Write(new float[480], 0.05, false);       // starts 40 ms later
+        Assert.Equal(480 + 1920 + 480, history.ReadState().Position);
+        Assert.Equal(0.05 + 0.01, history.ReadState().EndTimestamp, 9);
+    }
+
+    [Fact]
     public void Level_tracks_signal()
     {
         var router = new SourceRouter(new HistoryBuffer(1 << 14));
