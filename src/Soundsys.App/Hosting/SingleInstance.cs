@@ -29,7 +29,7 @@ internal sealed class SingleInstance : IDisposable
         bool owned;
         try
         {
-            owned = mutex.WaitOne(waitForPrevious ? TimeSpan.FromSeconds(10) : TimeSpan.Zero);
+            owned = mutex.WaitOne(waitForPrevious ? TimeSpan.FromSeconds(45) : TimeSpan.Zero);
         }
         catch (AbandonedMutexException)
         {

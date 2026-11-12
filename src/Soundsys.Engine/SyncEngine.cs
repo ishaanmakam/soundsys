@@ -86,6 +86,8 @@ public sealed record CalibrationReport(
 public sealed class SyncEngine : IDisposable
 {
     public const double TickSeconds = 0.25;
+    private static readonly TimeSpan StatusLockWait = TimeSpan.FromMilliseconds(20);
+    private EngineStatus? _lastStatus;
     private const double EndpointRefreshSeconds = 5;
     private const double BatteryRefreshSeconds = 30;
     private const double AutoGrowWindowSeconds = 30;
@@ -477,7 +479,33 @@ public sealed class SyncEngine : IDisposable
     /// <summary>Cheap snapshot for 10 Hz polling: endpoints and battery come from caches refreshed on device changes.</summary>
     public EngineStatus GetStatus()
     {
-        lock (_lock)
+        // Never block the UI thread behind a slow control operation (e.g. Start opening a Bluetooth speaker while
+        // holding the lock): if the lock is busy, return the last snapshot. The next poll catches up.
+        var last = Volatile.Read(ref _lastStatus);
+        if (last is not null && !_lock.TryEnter(StatusLockWait))
+        {
+            return last;
+        }
+
+        if (last is null)
+        {
+            _lock.Enter();
+        }
+
+        try
+        {
+            var status = BuildStatus();
+            Volatile.Write(ref _lastStatus, status);
+            return status;
+        }
+        finally
+        {
+            _lock.Exit();
+        }
+    }
+
+    private EngineStatus BuildStatus()
+    {
         {
             var endpoints = _endpoints;
             var defaultSpeaker = _defaultEndpoint;

@@ -134,10 +134,8 @@ public sealed partial class SpeakerSlotViewModel(SpeakerSlot slot, string title,
 
     private async Task Select(string endpointId)
     {
-        if (await runner.RunAsync(e => e.SelectSpeaker(slot, endpointId)))
-        {
-            owner.Reload();
-            owner.Main.Refresh();
-        }
+        await runner.RunAsync(e => e.SelectSpeaker(slot, endpointId));
+        owner.Reload(); // also after a failure: show what the engine really has
+        owner.Main.Refresh();
     }
 }
