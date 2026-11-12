@@ -198,3 +198,43 @@ public class OutputChannelTests
         Assert.True(ch.GetStats().Jumps > 0);
     }
 }
+
+public class OutputChannelPerformanceTests(Xunit.Abstractions.ITestOutputHelper output)
+{
+    [Fact]
+    public void Rendering_a_10ms_block_costs_a_small_fraction_of_its_duration()
+    {
+        const int rate = 48000;
+        var history = new HistoryBuffer(1 << 18);
+        var channel = new OutputChannel(history, new SharedSyncSettings { BaseLatencyMs = 50 });
+        channel.Prepare(new AudioFormat(rate, 2), 480);
+        history.Reset(rate);
+        var packet = new float[960];
+        var block = new float[960];
+        var t = 0.0;
+        for (var i = 0; i < 20; i++)
+        {
+            history.Write(packet, t);
+            t += 0.01;
+        }
+
+        void Run(int blocks)
+        {
+            for (var i = 0; i < blocks; i++)
+            {
+                history.Write(packet, t);
+                t += 0.01;
+                channel.Render(block, 480, new RenderTiming(t, 480));
+            }
+        }
+
+        Run(2000); // warm-up
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        Run(5000);
+        sw.Stop();
+        var perBlockMs = sw.Elapsed.TotalMilliseconds / 5000;
+        output.WriteLine($"Render cost: {perBlockMs * 1000:F1} µs per 10 ms stereo block ({perBlockMs / 10 * 100:F2} % of real time, one speaker)");
+        output.WriteLine($"DSP latency: {PolyphaseResampler.HalfTaps / (double)rate * 1000:F2} ms (resampler half-length); processing is done inside the callback, no extra block");
+        Assert.True(perBlockMs < 1.0, $"{perBlockMs:F3} ms per block");
+    }
+}
