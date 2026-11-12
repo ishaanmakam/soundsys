@@ -38,13 +38,27 @@ public class EngineTests(ITestOutputHelper output)
         public void Dispose() => Engine.Dispose();
     }
 
-    /// <summary>Steps virtual time until the task completes (analysis may finish on the thread pool).</summary>
+    /// <summary>
+    /// Steps virtual time until the task completes (analysis may finish on the thread pool). Runs without xUnit's
+    /// SynchronizationContext so engine continuations triggered by simulated timers execute inline on this thread,
+    /// exactly as they do on the app's timer/simulation threads; otherwise they'd be queued to the pool and virtual
+    /// time would race ahead of them.
+    /// </summary>
     private static T Drive<T>(SimScheduler scheduler, Task<T> task, SyncEngine? engine = null, double maxSeconds = 30)
     {
         var end = scheduler.Now + maxSeconds;
-        while (!task.IsCompleted && scheduler.Now < end)
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(null);
+        try
         {
-            scheduler.RunFor(0.01);
+            while (!task.IsCompleted && scheduler.Now < end)
+            {
+                scheduler.RunFor(0.01);
+            }
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
         }
 
         if (!task.IsCompleted && !task.Wait(TimeSpan.FromSeconds(10)))
