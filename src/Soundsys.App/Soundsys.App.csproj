@@ -12,6 +12,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- WPF Fluent ThemeMode is marked experimental -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <!-- The manifest declares PerMonitorV2 for WPF; the WinForms-only analyzer would have us call Application.SetHighDpiMode instead -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Soundsys.App.Tests" />
@@ -27,6 +29,6 @@
     <ProjectReference Include="..\Soundsys.Windows\Soundsys.Windows.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
   </ItemGroup>
 </Project>
