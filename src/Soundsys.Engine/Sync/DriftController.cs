@@ -14,6 +14,10 @@ public sealed class DriftController
 
     private const double MaxDt = 0.1;
 
+    /// <summary>Gain scheduling: start with a 5× faster loop and relax to the nominal one over this many seconds.</summary>
+    private const double AcquisitionSeconds = 30;
+    private const double AcquisitionSpeedup = 5;
+
     private double _sampleRate;
     private readonly double _filterTau;
     private readonly double _tauP;
@@ -23,6 +27,7 @@ public sealed class DriftController
     private double _filtered;
     private double _integral;
     private double _last;
+    private double _elapsed;
 
     public DriftController(double sampleRate, double filterTau = 0.5, double tauP = 5.0, double tauI = 20.0)
     {
@@ -59,9 +64,15 @@ public sealed class DriftController
             _filtered += (errorFrames - _filtered) * (1 - Math.Exp(-dt / _filterTau));
         }
 
+        // Fast acquisition from a cold start, then the quieter nominal loop (both critically damped: τi = 4·τp).
+        _elapsed += dt;
+        var speed = 1 + ((AcquisitionSpeedup - 1) * Math.Max(0, 1 - (_elapsed / AcquisitionSeconds)));
+        var tauP = _tauP / speed;
+        var tauI = _tauI / speed;
+
         var errorSeconds = _filtered / _sampleRate;
-        _integral = Math.Clamp(_integral + (errorSeconds * dt / (_tauP * _tauI)), -MaxCorrection, MaxCorrection);
-        _last = Math.Clamp((errorSeconds / _tauP) + _integral, -MaxCorrection, MaxCorrection);
+        _integral = Math.Clamp(_integral + (errorSeconds * dt / (tauP * tauI)), -MaxCorrection, MaxCorrection);
+        _last = Math.Clamp((errorSeconds / tauP) + _integral, -MaxCorrection, MaxCorrection);
         return _last;
     }
 
@@ -78,6 +89,7 @@ public sealed class DriftController
         _filtered = 0;
         _integral = 0;
         _last = 0;
+        _elapsed = 0;
     }
 
     /// <summary>Clears the error filter but keeps the learned drift (used after a read-pointer jump).</summary>

@@ -60,6 +60,9 @@ public sealed record SimSourceOptions
     public ISignal Signal { get; init; } = new MusicLikeSignal();
 
     public int Seed { get; init; } = 7;
+
+    /// <summary>When set and returning false, packets are not delivered (e.g. phone paused). Positions keep advancing.</summary>
+    public Func<bool>? Gate { get; init; }
 }
 
 /// <summary>
@@ -128,7 +131,11 @@ public sealed class SimulatedSource : IAudioSource
                 }
             }
 
-            if (dropped)
+            if (_options.Gate is { } gate && !gate())
+            {
+                lost = false;
+            }
+            else if (dropped)
             {
                 PacketsDropped++;
                 lost = true;
