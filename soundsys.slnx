@@ -8,5 +8,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/Soundsys.App.Tests/Soundsys.App.Tests.csproj" />
     <Project Path="tests/Soundsys.Engine.Tests/Soundsys.Engine.Tests.csproj" />
+    <Project Path="tests/Soundsys.Windows.Tests/Soundsys.Windows.Tests.csproj" />
   </Folder>
 </Solution>

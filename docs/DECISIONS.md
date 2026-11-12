@@ -32,7 +32,16 @@ One line per decision, with the rationale. Newest at the bottom of each section.
 - **Double-audio suppression is a pluggable strategy (`None` / `MuteEndpointDuringLoopback` / `MuteSourceSession`) chosen by the diag:** whether loopback is pre- or post-mute is driver-dependent. Every change is restored on stop, and nothing touches volume tonight.
 - **Laptop mode prefers process loopback of Spotify/Apple Music when running, else endpoint loopback:** keeps system sounds out of the speakers when possible.
 
-## UI / app
+## Windows integration (Phase 3)
+- **Own `[ComImport]` + `[PreserveSig]` declarations for the streaming interfaces (IAudioClient/2, render/capture clients); NAudio is used only for enumeration, properties, endpoint volume, sessions and notifications:** the RT loops get raw HRESULTs with no exception allocation, and I control WAVEFORMATEXTENSIBLE and raw mode.
+- **Every stream lives on its own MTA thread, which opens the client, runs the loop and releases COM. `Start` uses a two-step handshake (opened → caller runs Prepare/OnFormat → started):** this avoids STA marshaling from a WPF caller, and Prepare/OnFormat stay off the RT path while open failures still throw synchronously as `AudioDeviceException`.
+- **Render prefill is silence (`AUDCLNT_BUFFERFLAGS_SILENT`), not engine audio:** keeps `RenderTiming.QueuedFrames` truthful from the first callback. A 6 s event stall counts as a disconnect: Bluetooth links can die without `DEVICE_INVALIDATED`.
+- **Loopback is polled every 5 ms with a high-resolution waitable timer. Endpoint capture and process loopback are event-driven:** the probe showed process-loopback events arrive every 10 ms even in silence.
+- **Process-loopback completion handler uses source-generated COM (`[GeneratedComClass]`, implements `IAgileObject`), and `GetActivateResult` is called through the vtable:** built-in CCWs for non-public classes were a risk I couldn't test under SAC. The probe confirmed activation works.
+- **Bluetooth detection = bus enumerator → vendor-stack hint → device-container lookup:** this Snapdragon laptop exposes Bluetooth endpoints through Qualcomm's `QCASD` ACX driver, so checking only for `BTHENUM` misses them (see WINDOWS_PROBE.md). The container lookup also supplies the real device name.
+- **Speaker list collapses Bluetooth duplicates per container and hides HFP when A2DP exists. Recommend matching saved speakers by ContainerId:** one physical speaker can have several endpoint IDs across driver stacks.
+- **AudioPlaybackConnection: `StartAsync` on enable, plus one ~10 s `OpenAsync` attempt with backoff (`AutoOpen`). No periodic background paging:** paging an absent phone ties up the shared radio that also carries both speaker streams. `Release` re-creates and re-starts without opening, so the phone can come back on its own.
+- **Suppression only toggles mute, never volume. It leaves a marker file so a crash can be undone at next start, and never "restores" a mute the user had set themselves.**
 - **Status polled at 10 Hz from atomic engine counters:** meets "every action reflected within 1 s" without RT-thread events.
 - **Simulated-devices toggle hidden behind 5 clicks on the version label:** it's a dev option that shouldn't confuse normal use.
 - **Settings JSON in %LOCALAPPDATA% with atomic replace:** no registry clutter, survives crashes.
