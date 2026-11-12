@@ -85,10 +85,14 @@ public sealed class HistoryBuffer
         Publish(pos + frames, timestampSeconds + (frames / (double)Math.Max(1, _sampleRate)));
     }
 
-    /// <summary>Lock-free consistent read of the writer state (safe from any thread).</summary>
+    /// <summary>
+    /// Lock-free consistent read of the writer state (safe from any thread). Never blocks: if the writer is preempted
+    /// mid-publish for longer than a few spins, the individually-atomic fields are returned as they are, so a real-time
+    /// reader can't be stalled by a descheduled capture thread (at worst one callback sees a momentarily torn pair).
+    /// </summary>
     public WriterState ReadState()
     {
-        var spin = default(SpinWait);
+        long deadline = 0;
         while (true)
         {
             var s1 = Volatile.Read(ref _sequence);
@@ -105,9 +109,23 @@ public sealed class HistoryBuffer
                 }
             }
 
-            spin.SpinOnce(sleep1Threshold: -1);
+            var nowTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (deadline == 0)
+            {
+                deadline = nowTicks + MaxReadWaitTicks;
+            }
+            else if (nowTicks > deadline)
+            {
+                break;
+            }
+
+            Thread.SpinWait(8);
         }
+
+        return new WriterState(Volatile.Read(ref _position), Volatile.Read(ref _endTimestamp), Volatile.Read(ref _sampleRate), Volatile.Read(ref _epoch));
     }
+
+    private static readonly long MaxReadWaitTicks = System.Diagnostics.Stopwatch.Frequency / 1000; // 1 ms
 
     /// <summary>Copies frames [<paramref name="startFrame"/>, startFrame + left.Length) into separate channel arrays.</summary>
     public void ReadDeinterleaved(long startFrame, Span<float> left, Span<float> right)
