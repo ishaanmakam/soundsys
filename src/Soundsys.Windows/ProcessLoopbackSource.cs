@@ -116,18 +116,26 @@ public sealed partial class ProcessLoopbackSource : WasapiCaptureBase
     internal static unsafe int TryActivate(uint processId, out IAudioClientNative? client)
     {
         client = null;
-        var parameters = new AudioClientActivationParams
+
+        // The PROPVARIANT and its blob must stay valid until the asynchronous activation is done. They live in native
+        // memory that is freed only after completion; on a timeout they're deliberately leaked (a few dozen bytes)
+        // rather than freed under a still-running activation.
+        var block = (byte*)NativeMemory.AllocZeroed((nuint)(sizeof(AudioClientActivationParams) + sizeof(PropVariantBlob)));
+        var parameters = (AudioClientActivationParams*)block;
+        *parameters = new AudioClientActivationParams
         {
             ActivationType = AudioClientActivationType.ProcessLoopback,
             TargetProcessId = processId,
             ProcessLoopbackMode = ProcessLoopbackMode.IncludeTargetProcessTree,
         };
-        var variant = new PropVariantBlob
+        var variant = (PropVariantBlob*)(block + sizeof(AudioClientActivationParams));
+        *variant = new PropVariantBlob
         {
             Vt = PropVariantBlob.VtBlob,
             BlobSize = (uint)sizeof(AudioClientActivationParams),
-            BlobData = (nint)(&parameters),
+            BlobData = (nint)parameters,
         };
+        var timedOut = false;
 
         var handler = new ActivationCompletionHandler();
         nint unknown = 0, handlerItf = 0, operation = 0, activated = 0;
@@ -138,12 +146,14 @@ public sealed partial class ProcessLoopbackSource : WasapiCaptureBase
             if (hr < 0)
                 return hr;
 
-            // The PROPVARIANT and its blob live on this stack frame, which outlives the activation (we block below).
-            hr = NativeMethods.ActivateAudioInterfaceAsync(VirtualDevicePath, CoreAudioIids.AudioClient, (nint)(&variant), handlerItf, out operation);
+            hr = NativeMethods.ActivateAudioInterfaceAsync(VirtualDevicePath, CoreAudioIids.AudioClient, (nint)variant, handlerItf, out operation);
             if (hr < 0)
                 return hr;
             if (!handler.Completed.Wait(ActivationTimeoutMs))
+            {
+                timedOut = true;
                 return AudioErrors.EUnexpected;
+            }
 
             // IActivateAudioInterfaceAsyncOperation::GetActivateResult is vtable slot 3 (after IUnknown).
             int activateHr;
@@ -172,6 +182,8 @@ public sealed partial class ProcessLoopbackSource : WasapiCaptureBase
         }
         finally
         {
+            if (!timedOut)
+                NativeMemory.Free(block);
             if (activated != 0)
                 Marshal.Release(activated);
             if (operation != 0)

@@ -134,6 +134,7 @@ public sealed class PlaybackSuppressor : IDisposable
             if (!File.Exists(MarkerPath))
                 return;
             var id = File.ReadAllText(MarkerPath).Trim();
+            var restored = id.Length == 0;
             RunMta(() =>
             {
                 if (id.Length > 0)
@@ -141,10 +142,16 @@ public sealed class PlaybackSuppressor : IDisposable
                     using var enumerator = new MMDeviceEnumerator();
                     using var device = enumerator.GetDevice(id);
                     if (device.State == DeviceState.Active)
+                    {
                         device.AudioEndpointVolume.Mute = false;
+                        restored = true;
+                    }
                 }
             });
-            File.Delete(MarkerPath);
+
+            // Keep the marker until the unmute really happened (the device may be off right now; try again next start).
+            if (restored)
+                File.Delete(MarkerPath);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException or ArgumentException)
         {

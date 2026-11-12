@@ -97,7 +97,8 @@ public sealed class AudioPlaybackConnectionLink : IPhoneLink
             }
 
             toClose = _phones.Values.Where(p => p.Enabled && !enabled.Contains(p.Id)).ToList();
-            toOpen = _phones.Values.Where(p => !p.Enabled && enabled.Contains(p.Id)).ToList();
+            // Also retry phones that are enabled but failed earlier (e.g. Bluetooth was off).
+            toOpen = _phones.Values.Where(p => enabled.Contains(p.Id) && (!p.Enabled || p.State == PhoneLinkState.Error)).ToList();
             foreach (var p in toClose)
                 p.Enabled = false;
             foreach (var p in toOpen)
@@ -112,6 +113,7 @@ public sealed class AudioPlaybackConnectionLink : IPhoneLink
 
         foreach (var p in toOpen)
         {
+            Close(p);
             if (CreateAndStart(p) && AutoOpen)
                 _ = OpenWithRetryAsync(p.Id);
         }
@@ -254,11 +256,20 @@ public sealed class AudioPlaybackConnectionLink : IPhoneLink
             }
 
             connection.StateChanged += OnConnectionStateChanged;
-            Run(async () =>
+            try
             {
-                await connection.StartAsync();
-                return true;
-            });
+                Run(async () =>
+                {
+                    await connection.StartAsync();
+                    return true;
+                });
+            }
+            catch
+            {
+                connection.StateChanged -= OnConnectionStateChanged;
+                connection.Dispose();
+                throw;
+            }
             lock (_gate)
                 p.Connection = connection;
             SetState(p, connection.State == AudioPlaybackConnectionState.Opened ? PhoneLinkState.Connected : PhoneLinkState.Waiting, null);
