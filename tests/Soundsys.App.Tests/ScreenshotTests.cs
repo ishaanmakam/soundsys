@@ -7,7 +7,7 @@ using Soundsys.App.Controls;
 using Soundsys.App.Theme;
 using Soundsys.App.ViewModels;
 using Soundsys.App.Views;
-using Soundsys.Engine.Settings;
+using Soundsys.Engine.Updates;
 using Xunit.Abstractions;
 
 namespace Soundsys.App.Tests;
@@ -97,7 +97,11 @@ public class ScreenshotTests(ITestOutputHelper output)
             rig.Vm.SelectedTab = AppTab.Phones;
             rig.Vm.PhonesPage.Refresh();
         });
-        Shoot("15-settings", written, rig => rig.Vm.SelectedTab = AppTab.Settings);
+        Shoot("15-settings", written, rig =>
+        {
+            rig.Vm.SelectedTab = AppTab.Settings;
+            rig.Await(rig.Vm.SettingsPage.CheckUpdatesCommand.ExecuteAsync(null));
+        }, make: () => new Rig(checkForUpdates: _ => Task.FromResult(new UpdateCheckResult(false, "0.1.0-alpha", null, "You're up to date (0.1.0-alpha)."))));
 
         foreach (var f in written)
         {
@@ -108,9 +112,9 @@ public class ScreenshotTests(ITestOutputHelper output)
         Assert.All(written, f => Assert.True(new FileInfo(f).Length > 2000, $"{f} looks empty"));
     }
 
-    private static void Shoot(string name, List<string> written, Action<Rig> arrange, bool empty = false)
+    private static void Shoot(string name, List<string> written, Action<Rig> arrange, bool empty = false, Func<Rig>? make = null)
     {
-        using var rig = new Rig(empty: empty);
+        using var rig = make?.Invoke() ?? new Rig(empty: empty);
         arrange(rig);
         rig.Vm.Refresh();
         Render(name, rig.Vm, written);

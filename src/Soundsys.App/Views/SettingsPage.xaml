@@ -12,11 +12,10 @@
 
             <TextBlock Style="{StaticResource SectionTitle}" Text="Updates" />
             <CheckBox Margin="0,4,0,0" Style="{StaticResource Switch}" Content="Check for updates once a day" IsChecked="{Binding CheckAutomatically}" />
-            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                <Button Content="Check for updates" Padding="14,5" Command="{Binding CheckUpdatesCommand}" IsEnabled="{Binding CanCheckUpdates}" />
-                <TextBlock Style="{StaticResource MutedText}" Margin="12,0,0,0" VerticalAlignment="Center" TextWrapping="NoWrap"
-                           TextTrimming="CharacterEllipsis" MaxWidth="190" Text="{Binding UpdateResultText}" AutomationProperties.LiveSetting="Polite" />
-            </StackPanel>
+            <Button Margin="0,8,0,0" HorizontalAlignment="Left" Content="Check for updates" Padding="14,5" Command="{Binding CheckUpdatesCommand}"
+                    IsEnabled="{Binding CanCheckUpdates}" />
+            <TextBlock Style="{StaticResource MutedText}" Margin="0,8,0,0" Text="{Binding UpdateResultText}" AutomationProperties.LiveSetting="Polite"
+                       Visibility="{Binding UpdateResultText, Converter={StaticResource NotEmptyToVisibility}}" />
             <Button Margin="0,8,0,0" Style="{StaticResource LinkButton}" Content="Download the new version" Command="{Binding OpenUpdateCommand}"
                     Visibility="{Binding UpdateUrl, Converter={StaticResource NotEmptyToVisibility}}" />
 
