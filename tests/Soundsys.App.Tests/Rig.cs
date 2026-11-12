@@ -22,6 +22,14 @@ internal sealed class Rig : IDisposable
 
     private readonly SynchronizationContext? _previousContext;
 
+    static Rig()
+    {
+        // Tests block threads while they wait (Settle/Await) and run in parallel with CPU-heavy engine tests on CI;
+        // give the pool enough threads up front so Task.Run work from the view models isn't starved.
+        ThreadPool.GetMinThreads(out var workers, out var io);
+        ThreadPool.SetMinThreads(Math.Max(workers, 32), io);
+    }
+
     public Rig(
         bool empty = false,
         AppSettings? settings = null,
@@ -128,12 +136,12 @@ internal sealed class Rig : IDisposable
     /// <summary>Lets fire-and-forget engine calls (sliders, toggles) land, then polls.</summary>
     public void Settle(Func<bool> condition, string what)
     {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
         while (!condition())
         {
             if (DateTime.UtcNow > deadline)
             {
-                throw new TimeoutException($"Not true after 10 s: {what}");
+                throw new TimeoutException($"Not true after 30 s: {what} (error strip: '{Vm.ErrorText}')");
             }
 
             Thread.Sleep(5);
