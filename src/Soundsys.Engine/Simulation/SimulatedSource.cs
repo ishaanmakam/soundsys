@@ -1,15 +1,10 @@
 using Soundsys.Engine.Abstractions;
+using Soundsys.Engine.Dsp;
 
 namespace Soundsys.Engine.Simulation;
 
-/// <summary>A deterministic test signal: fills interleaved frames for absolute frame indices.</summary>
-public interface ISimSignal
-{
-    void Fill(Span<float> interleaved, int channels, long firstFrame, int sampleRate);
-}
-
 /// <summary>Quiet, music-like signal (chord + soft percussion). Never reaches a real speaker.</summary>
-public sealed class MusicLikeSignal : ISimSignal
+public sealed class MusicLikeSignal : ISignal
 {
     private static readonly double[] Freqs = [110, 220, 277.18, 329.63, 440, 659.25, 880, 1760];
 
@@ -62,7 +57,7 @@ public sealed record SimSourceOptions
     /// <summary>Windows (start, duration seconds, relative to Start) in which packets are lost.</summary>
     public IReadOnlyList<(double Start, double Duration)> Dropouts { get; init; } = [];
 
-    public ISimSignal Signal { get; init; } = new MusicLikeSignal();
+    public ISignal Signal { get; init; } = new MusicLikeSignal();
 
     public int Seed { get; init; } = 7;
 }

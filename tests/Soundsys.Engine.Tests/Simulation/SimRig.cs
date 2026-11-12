@@ -5,7 +5,7 @@ using Soundsys.Engine.Sync;
 namespace Soundsys.Engine.Tests.Simulation;
 
 /// <summary>Cheap constant signal for long runs (alignment is measured from positions, not content).</summary>
-internal sealed class ConstantSignal : ISimSignal
+internal sealed class ConstantSignal : ISignal
 {
     public void Fill(Span<float> interleaved, int channels, long firstFrame, int sampleRate) => interleaved.Fill(0.01f);
 }
