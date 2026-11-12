@@ -39,6 +39,10 @@ public sealed partial class SyncViewModel(EngineRunner runner, MainViewModel mai
     [ObservableProperty]
     public partial bool IsRunning { get; set; }
 
+    /// <summary>The engine is stopped (the click track needs Start first).</summary>
+    [ObservableProperty]
+    public partial bool IsStopped { get; set; } = true;
+
     /// <summary>B minus A, ms: positive = Bed later, negative = Desk later.</summary>
     [ObservableProperty]
     public partial double ManualSync { get; set; }
@@ -67,6 +71,7 @@ public sealed partial class SyncViewModel(EngineRunner runner, MainViewModel mai
             IsCalibrating = calibrating || _calibrateRunning;
             StepText = calibrating ? st.CalibrationStep ?? "Getting ready…" : null;
             IsRunning = st.State == EngineState.Running;
+            IsStopped = st.State == EngineState.Stopped;
             CanCalibrate = !IsCalibrating;
             CanClickTrack = IsRunning;
             var a = st.Speakers[0].Name;

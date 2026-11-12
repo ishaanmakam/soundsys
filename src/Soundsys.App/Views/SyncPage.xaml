@@ -9,8 +9,6 @@
                        Text="Plays a short sweep on each speaker and listens with the laptop's microphone. Keep the room quiet; it takes about 10 seconds." />
             <Button Margin="0,12,0,0" HorizontalAlignment="Left" Style="{DynamicResource AccentButtonStyle}" Content="Auto-calibrate" Padding="16,6"
                     Command="{Binding CalibrateCommand}" IsEnabled="{Binding CanCalibrate}" AutomationProperties.Name="Auto-calibrate" />
-            <TextBlock Style="{StaticResource MutedText}" Margin="0,12,0,0" Text="{Binding StepText}" AutomationProperties.LiveSetting="Polite"
-                       Visibility="{Binding IsCalibrating, Converter={StaticResource BoolToVisibility}}" />
             <StackPanel Margin="0,12,0,0" Visibility="{Binding ResultText, Converter={StaticResource NotEmptyToVisibility}}"
                         AutomationProperties.LiveSetting="Polite">
                 <TextBlock Text="{Binding ResultText}">
@@ -54,7 +52,7 @@
                     <TextBlock Text="Play click track" />
                     <TextBlock Style="{StaticResource LabelText}" Text="A steady tick on both speakers, to judge sync by ear." />
                     <TextBlock Style="{StaticResource LabelText}" Text="Press Start first."
-                               Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+                               Visibility="{Binding IsStopped, Converter={StaticResource BoolToVisibility}}" />
                 </StackPanel>
             </CheckBox>
         </StackPanel>
