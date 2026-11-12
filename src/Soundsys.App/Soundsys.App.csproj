@@ -8,8 +8,12 @@
     <RootNamespace>Soundsys.App</RootNamespace>
     <AssemblyName>soundsys</AssemblyName>
     <RuntimeIdentifiers>win-arm64;win-x64</RuntimeIdentifiers>
+    <ApplicationIcon>Assets\soundsys.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- WPF Fluent ThemeMode is marked experimental -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <!-- The manifest declares PerMonitorV2 for WPF; the WinForms-only analyzer would have us call Application.SetHighDpiMode instead -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Soundsys.App.Tests" />
@@ -18,10 +22,13 @@
     <Using Remove="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
+    <Resource Include="Assets\soundsys.ico" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Soundsys.Engine\Soundsys.Engine.csproj" />
     <ProjectReference Include="..\Soundsys.Windows\Soundsys.Windows.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
   </ItemGroup>
 </Project>

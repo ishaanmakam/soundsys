@@ -1,0 +1,158 @@
+<UserControl x:Class="Soundsys.App.Views.HomePage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Soundsys.App.Controls"
+             xmlns:vm="clr-namespace:Soundsys.App.ViewModels">
+    <UserControl.Resources>
+        <!-- Shared grid for the volume row and the speaker rows: 28 px lead (icon / dot), flexible middle, 56 px numbers. -->
+        <GridLength x:Key="LeadColumn">28</GridLength>
+        <GridLength x:Key="NumberColumn">56</GridLength>
+
+        <!-- One speaker: state dot, name, device, battery; then its volume and sync offset. Rows, not cards. -->
+        <DataTemplate x:Key="SpeakerRow" DataType="{x:Type vm:SpeakerRowViewModel}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{StaticResource LeadColumn}" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="{StaticResource NumberColumn}" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="20" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Ellipse HorizontalAlignment="Left" ToolTip="{Binding StateText}" AutomationProperties.Name="{Binding StateText}">
+                    <Ellipse.Style>
+                        <Style TargetType="Ellipse" BasedOn="{StaticResource StateDot}">
+                            <Setter Property="Fill" Value="Transparent" />
+                            <Setter Property="Stroke" Value="{DynamicResource InkMutedBrush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Dot}" Value="Idle">
+                                    <Setter Property="Fill" Value="{DynamicResource InkMutedBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Dot}" Value="Playing">
+                                    <Setter Property="Fill" Value="{DynamicResource SignalBrush}" />
+                                    <Setter Property="Stroke" Value="{DynamicResource SignalBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Dot}" Value="Lost">
+                                    <Setter Property="Fill" Value="{DynamicResource AlertBrush}" />
+                                    <Setter Property="Stroke" Value="{DynamicResource AlertBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Ellipse.Style>
+                </Ellipse>
+                <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
+                <TextBlock Grid.Column="2" Text="{Binding DeviceText}" Style="{StaticResource LabelText}" TextWrapping="NoWrap"
+                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,1,8,0" />
+                <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right"
+                            Visibility="{Binding BatteryText, Converter={StaticResource NotEmptyToVisibility}}"
+                            AutomationProperties.Name="{Binding BatteryText, StringFormat=Battery {0}}">
+                    <TextBlock Style="{StaticResource IconText}" FontSize="14" Text="{Binding BatteryGlyph}" Margin="0,1,4,0" />
+                    <TextBlock Style="{StaticResource NumberText}" Text="{Binding BatteryText}" />
+                </StackPanel>
+                <Slider Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Style="{StaticResource AmberSlider}" Margin="0,4,12,0"
+                        Value="{Binding Volume}" Visibility="{Binding IsChosen, Converter={StaticResource BoolToVisibility}}"
+                        AutomationProperties.Name="{Binding Name, StringFormat={}{0} volume}" />
+                <TextBlock Grid.Row="1" Grid.Column="3" Style="{StaticResource NumberText}" HorizontalAlignment="Right" Margin="0,4,0,0"
+                           Text="{Binding OffsetText}" ToolTip="How long this speaker waits so both play in step" />
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+        <Grid Margin="24,0,24,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- The signature: two rings that slide together into one. -->
+            <Button x:Name="Signature" HorizontalAlignment="Center"
+                    Command="{Binding ToggleRunCommand}" IsEnabled="{Binding CanToggleRun}"
+                    AutomationProperties.Name="{Binding ActionCaption}" AutomationProperties.HelpText="{Binding Headline}">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource SignatureButton}">
+                        <Setter Property="Margin" Value="0,20,0,0" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasStrip}" Value="True">
+                                <Setter Property="Margin" Value="0,8,0,0" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+                <StackPanel>
+                    <controls:TwoRings StateA="{Binding RingA}" StateB="{Binding RingB}" IsMerged="{Binding IsMerged}"
+                                       SignalBrush="{DynamicResource SignalBrush}" SignalSoftBrush="{DynamicResource SignalSoftBrush}"
+                                       MutedBrush="{DynamicResource InkMutedBrush}" AlertBrush="{DynamicResource AlertBrush}">
+                        <controls:TwoRings.Style>
+                            <Style TargetType="controls:TwoRings">
+                                <Setter Property="Width" Value="240" />
+                                <Setter Property="Height" Value="116" />
+                                <Style.Triggers>
+                                    <!-- A strip is showing: smaller rings so the speaker rows still fit without scrolling. -->
+                                    <DataTrigger Binding="{Binding HasStrip}" Value="True">
+                                        <Setter Property="LayoutTransform">
+                                            <Setter.Value>
+                                                <ScaleTransform ScaleX="0.82" ScaleY="0.82" />
+                                            </Setter.Value>
+                                        </Setter>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </controls:TwoRings.Style>
+                    </controls:TwoRings>
+                    <TextBlock Text="{Binding ActionCaption}" HorizontalAlignment="Center" Margin="0,10,0,0" FontSize="14" FontWeight="SemiBold">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding CanToggleRun}" Value="False" />
+                                            <Condition Binding="{Binding IsCalibrating}" Value="False" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Foreground" Value="{DynamicResource InkMutedBrush}" />
+                                        <Setter Property="Opacity" Value="0.7" />
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </Button>
+
+            <!-- Source: Phone | Laptop -->
+            <Border Grid.Row="1" Style="{StaticResource SegmentGroup}" Margin="0,24,0,0" IsEnabled="{Binding IsCalibrating, Converter={StaticResource Not}}">
+                <StackPanel Orientation="Horizontal" KeyboardNavigation.DirectionalNavigation="Cycle" AutomationProperties.Name="Source">
+                    <RadioButton Style="{StaticResource Segment}" GroupName="Source" Content="Phone" IsChecked="{Binding IsPhoneMode}"
+                                 AutomationProperties.Name="Play from a phone" />
+                    <RadioButton Style="{StaticResource Segment}" GroupName="Source" Content="Laptop" IsChecked="{Binding IsLaptopMode}"
+                                 AutomationProperties.Name="Play this laptop's sound" />
+                </StackPanel>
+            </Border>
+
+            <!-- Master volume -->
+            <Grid Grid.Row="2" Margin="0,24,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{StaticResource LeadColumn}" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="{StaticResource NumberColumn}" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource IconText}" Text="&#xE767;" HorizontalAlignment="Left" Margin="-2,0,0,0" />
+                <Slider Grid.Column="1" Style="{StaticResource AmberSlider}" Value="{Binding MasterVolume}" Margin="0,0,12,0"
+                        AutomationProperties.Name="Volume" />
+                <TextBlock Grid.Column="2" Style="{StaticResource NumberText}" FontSize="14" Foreground="{DynamicResource InkBrush}"
+                           HorizontalAlignment="Right" Text="{Binding MasterVolume, StringFormat={}{0:0}}" />
+            </Grid>
+
+            <!-- Speakers -->
+            <StackPanel Grid.Row="3" Margin="0,28,0,0" IsEnabled="{Binding IsCalibrating, Converter={StaticResource Not}}">
+                <ContentControl Content="{Binding SpeakerA}" ContentTemplate="{StaticResource SpeakerRow}" Focusable="False" />
+                <ContentControl Content="{Binding SpeakerB}" ContentTemplate="{StaticResource SpeakerRow}" Focusable="False" Margin="0,18,0,0" />
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

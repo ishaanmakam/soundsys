@@ -45,6 +45,16 @@ flowchart LR
   - *Auto-calibrate* plays a short sweep on each speaker, listens with the laptop mic, and lines them up.
 - **Drop-outs**: if a speaker turns off, the other keeps playing. When it comes back, it rejoins within a few seconds at its saved delay.
 
+## The app
+
+One small window that lives in the tray. The two rings are the Start button: one ring per speaker, apart when stopped, sliding together into one amber lens when both play. Each ring also shows its speaker: amber = playing, breathing = connecting, dashed red = off or out of range.
+
+| Ready | Playing from a phone (dark) | One speaker dropped | Sync (dark) |
+|---|---|---|---|
+| ![Ready](docs/screenshots/ready-light.png) | ![Playing](docs/screenshots/playing-dark.png) | ![Dropped](docs/screenshots/dropped-light.png) | ![Sync](docs/screenshots/sync-dark.png) |
+
+It follows Windows light/dark mode. Closing the window keeps soundsys running in the tray; **Quit** is in the tray menu. Start it hidden with `soundsys.exe --tray` (that's what "Start with Windows" does). Every screen and state is rendered by a test on each CI run (artifact `screenshots-win-x64`).
+
 ## Install
 
 1. Download the latest zip from [Releases](https://github.com/ishaanmakam/soundsys/releases):

@@ -1,0 +1,60 @@
+<UserControl x:Class="Soundsys.App.Views.SyncPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+        <StackPanel Margin="24,20,24,16">
+            <!-- Auto-calibrate -->
+            <TextBlock Style="{StaticResource SectionTitle}" Text="Auto-calibrate" />
+            <TextBlock Style="{StaticResource LabelText}" Margin="0,2,0,0"
+                       Text="Plays a short sweep on each speaker and listens with the laptop's microphone. Keep the room quiet; it takes about 10 seconds." />
+            <Button Margin="0,12,0,0" HorizontalAlignment="Left" Style="{DynamicResource AccentButtonStyle}" Content="Auto-calibrate" Padding="16,6"
+                    Command="{Binding CalibrateCommand}" IsEnabled="{Binding CanCalibrate}" AutomationProperties.Name="Auto-calibrate" />
+            <StackPanel Margin="0,12,0,0" Visibility="{Binding ResultText, Converter={StaticResource NotEmptyToVisibility}}"
+                        AutomationProperties.LiveSetting="Polite">
+                <TextBlock Text="{Binding ResultText}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource BodyText}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ResultIsProblem}" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource AlertBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <TextBlock Style="{StaticResource NumberText}" Margin="0,4,0,0" TextWrapping="Wrap" Text="{Binding NumbersText}"
+                           Visibility="{Binding NumbersText, Converter={StaticResource NotEmptyToVisibility}}" />
+            </StackPanel>
+
+            <Border Style="{StaticResource Separator}" Margin="0,20,0,20" />
+
+            <!-- Manual -->
+            <TextBlock Style="{StaticResource SectionTitle}" Text="Manual" />
+            <TextBlock Style="{StaticResource LabelText}" Margin="0,2,0,0" Text="Play something with a clear beat and drag until both speakers sound like one." />
+            <Slider Margin="-3,12,-3,0" Style="{StaticResource CentredSlider}" Minimum="-500" Maximum="500" SmallChange="1" LargeChange="10"
+                    TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding ManualSync}" IsEnabled="{Binding IsCalibrating, Converter={StaticResource Not}}"
+                    AutomationProperties.Name="Manual sync offset in milliseconds" AutomationProperties.HelpText="{Binding ManualSyncText}" />
+            <Grid Margin="0,2,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource LabelText}" Text="{Binding LeftLabel}" />
+                <TextBlock Grid.Column="1" Style="{StaticResource NumberText}" FontSize="14" Foreground="{DynamicResource InkBrush}"
+                           Text="{Binding ManualSyncText}" />
+                <TextBlock Grid.Column="2" Style="{StaticResource LabelText}" Text="{Binding RightLabel}" HorizontalAlignment="Right" />
+            </Grid>
+
+            <CheckBox Margin="0,16,0,0" Style="{StaticResource Switch}" IsChecked="{Binding ClickTrack}" IsEnabled="{Binding CanClickTrack}"
+                      AutomationProperties.Name="Play click track">
+                <StackPanel>
+                    <TextBlock Text="Play click track" />
+                    <TextBlock Style="{StaticResource LabelText}" Text="A steady tick on both speakers, to judge sync by ear." />
+                    <TextBlock Style="{StaticResource LabelText}" Text="Press Start first."
+                               Visibility="{Binding IsStopped, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
+            </CheckBox>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

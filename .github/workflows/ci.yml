@@ -44,6 +44,8 @@ jobs:
       - name: Build
         run: dotnet build soundsys.slnx -c Release
       - name: Test
+        env:
+          SOUNDSYS_SCREENSHOT_DIR: ${{ github.workspace }}/screenshots
         run: dotnet test soundsys.slnx -c Release --no-build --logger "trx;LogFilePrefix=${{ matrix.rid }}" --logger "console;verbosity=normal" --results-directory TestResults --blame-hang-timeout 4m --blame-hang-dump-type none
       - name: soundsys-diag end-to-end (simulated devices, silent)
         run: dotnet run --project src/Soundsys.Diag/Soundsys.Diag.csproj -c Release --no-build -- --simulated --quick --drift-hour --out TestResults/PHASE0_RESULTS_simulated.md
@@ -59,3 +61,10 @@ jobs:
         with:
           name: test-results-${{ matrix.rid }}
           path: TestResults
+      - name: Upload UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ matrix.rid }}
+          path: screenshots
+          if-no-files-found: warn
