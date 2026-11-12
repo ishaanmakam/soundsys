@@ -135,7 +135,9 @@ public sealed class SyncEngine : IDisposable
 
         _backend.DevicesChanged += (_, _) => Enqueue(OnDevicesChanged);
         _backend.PhoneLink.ActivityChanged += (_, e) => Enqueue(now => OnPhoneActivity(e.PhoneId, e.State));
+        FollowMovedSpeakers();
         AutoSelectSpeakers();
+        RememberContainers();
         _tick = _scheduler.SchedulePeriodic(TickSeconds, Tick);
     }
 
@@ -328,6 +330,7 @@ public sealed class SyncEngine : IDisposable
                 }
             }
 
+            RememberContainers();
             ApplySpeakerSettings();
         }
     }
@@ -720,6 +723,7 @@ public sealed class SyncEngine : IDisposable
 
     private void OnDevicesChanged(double now)
     {
+        FollowMovedSpeakers();
         if (_state != EngineState.Stopped)
         {
             for (var i = 0; i < 2; i++)
@@ -941,6 +945,55 @@ public sealed class SyncEngine : IDisposable
             _shared.BaseLatencyMs = Math.Min(MaxBaseLatencyMs, _shared.BaseLatencyMs + AutoGrowStepMs);
             Settings.BaseLatencyMs = _shared.BaseLatencyMs;
             _underrunTimes.Clear();
+            MarkDirty();
+        }
+    }
+
+    /// <summary>Records the physical-device container of the selected speakers.</summary>
+    private void RememberContainers()
+    {
+        var speakers = _backend.GetSpeakers();
+        foreach (var id in new[] { Settings.SpeakerAId, Settings.SpeakerBId })
+        {
+            var c = id is null ? null : speakers.FirstOrDefault(s => s.Id == id)?.ContainerId;
+            if (id is not null && c is not null && (!Settings.SpeakerContainers.TryGetValue(id, out var old) || old != c))
+            {
+                Settings.SpeakerContainers[id] = c;
+                MarkDirty();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Windows can give the same Bluetooth speaker a new endpoint ID (driver stack change, re-pairing). If a selected
+    /// endpoint disappeared but a speaker with the same physical container exists, follow it and keep its name,
+    /// volume and calibration.
+    /// </summary>
+    private void FollowMovedSpeakers()
+    {
+        var speakers = _backend.GetSpeakers();
+        foreach (var id in new[] { Settings.SpeakerAId, Settings.SpeakerBId })
+        {
+            if (id is null || speakers.Any(s => s.Id == id) || !Settings.SpeakerContainers.TryGetValue(id, out var container))
+            {
+                continue;
+            }
+
+            var moved = speakers.FirstOrDefault(s => s.ContainerId == container && s.Id != Settings.SpeakerAId && s.Id != Settings.SpeakerBId);
+            if (moved is null)
+            {
+                continue;
+            }
+
+            Settings.MigrateEndpoint(id, moved.Id);
+            for (var i = 0; i < 2; i++)
+            {
+                if (_activeIds[i] == id)
+                {
+                    _activeIds[i] = moved.Id;
+                }
+            }
+
             MarkDirty();
         }
     }

@@ -85,7 +85,7 @@ public sealed class SimulatedBackend : IAudioBackend
         lock (_lock)
         {
             return _world.Speakers
-                .Select(s => new AudioEndpointInfo(s.Options.Id, s.Options.Name, s.Options.IsBluetooth, _available[s.Options.Id] ? EndpointState.Active : EndpointState.Unavailable, s.Options.Id))
+                .Select(s => new AudioEndpointInfo(s.Options.Id, s.Options.Name, s.Options.IsBluetooth, _available[s.Options.Id] ? EndpointState.Active : EndpointState.Unavailable, s.Options.ContainerId ?? s.Options.Id))
                 .ToList();
         }
     }
@@ -151,6 +151,21 @@ public sealed class SimulatedBackend : IAudioBackend
         }
 
         toDrop?.SimulateDisconnect();
+        DevicesChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Simulates Windows giving a speaker a new endpoint ID (driver stack change / re-pair); the physical device is the same.</summary>
+    public void ReplaceSpeakerEndpoint(string oldId, string newId)
+    {
+        lock (_lock)
+        {
+            var i = _world.Speakers.FindIndex(s => s.Options.Id == oldId);
+            var e = _world.Speakers[i];
+            _world.Speakers[i] = (e.Options with { Id = newId, ContainerId = e.Options.ContainerId ?? oldId }, e.Available, e.Battery);
+            _available[newId] = _available[oldId];
+            _available.Remove(oldId);
+        }
+
         DevicesChanged?.Invoke(this, EventArgs.Empty);
     }
 

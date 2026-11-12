@@ -367,6 +367,25 @@ public class EngineTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void Follows_a_speaker_whose_endpoint_id_changes_keeping_name_volume_and_sync()
+    {
+        using var rig = new Rig();
+        rig.Engine.SetManualSync(42);
+        rig.Engine.SetSpeakerVolume(SpeakerSlot.B, 0.3);
+        rig.Engine.RenameSpeaker(Bed, "Bedroom");
+        rig.Run(0.5);
+
+        rig.Backend.ReplaceSpeakerEndpoint(Bed, "sim:jbl-charge-5-new-stack");
+        rig.Run(0.5);
+
+        var status = rig.Engine.GetStatus();
+        Assert.Equal("sim:jbl-charge-5-new-stack", rig.Engine.Settings.SpeakerBId);
+        Assert.Equal("Bedroom", status.Speakers[1].Name);
+        Assert.Equal(0.3, status.Speakers[1].Volume);
+        Assert.Equal(42, rig.Engine.GetManualSync());
+    }
+
+    [Fact]
     public void Warns_when_windows_plays_straight_to_a_chosen_speaker()
     {
         var world = new SimWorld { DefaultSpeakerId = Desk };
