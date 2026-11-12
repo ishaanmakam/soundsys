@@ -21,7 +21,9 @@ public sealed class EndpointCatalog : IDisposable
 
     private const DeviceState ListedStates = DeviceState.Active | DeviceState.Unplugged | DeviceState.NotPresent;
 
-    private readonly ConcurrentDictionary<Guid, ContainerFacts> _containers = new();
+    private readonly ConcurrentDictionary<Guid, (ContainerFacts? Facts, long Expires)> _containers = new();
+    private static readonly long FactsLifetime = System.Diagnostics.Stopwatch.Frequency * 300;
+    private static readonly long FailedLookupLifetime = System.Diagnostics.Stopwatch.Frequency * 30;
     private readonly object _watchGate = new();
     private MMDeviceEnumerator? _watchEnumerator;
     private NotificationClient? _notificationClient;
@@ -148,8 +150,11 @@ public sealed class EndpointCatalog : IDisposable
     /// </summary>
     private ContainerFacts? GetContainerFacts(Guid container)
     {
-        if (_containers.TryGetValue(container, out var cached))
-            return cached;
+        // Cached with an expiry: facts can change while pairing (the Bluetooth node appears after the endpoint) or on
+        // rename; failed/timed-out lookups are cached briefly so a stalled query can't block every enumeration.
+        var now = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (_containers.TryGetValue(container, out var cached) && cached.Expires > now)
+            return cached.Facts;
         try
         {
             var facts = Task.Run(async () =>
@@ -170,11 +175,12 @@ public sealed class EndpointCatalog : IDisposable
 
                 return new ContainerFacts(ids.Any(EndpointClassifier.IsBluetoothInstanceId), name, ids);
             }).WaitAsync(TimeSpan.FromSeconds(3)).GetAwaiter().GetResult();
-            _containers[container] = facts;
+            _containers[container] = (facts, now + FactsLifetime);
             return facts;
         }
         catch (Exception ex) when (ex is TimeoutException or System.Runtime.InteropServices.COMException or UnauthorizedAccessException or ArgumentException)
         {
+            _containers[container] = (null, now + FailedLookupLifetime);
             return null;
         }
     }
@@ -212,27 +218,35 @@ public sealed class EndpointCatalog : IDisposable
 
     public void Dispose()
     {
+        MMDeviceEnumerator? enumerator;
+        NotificationClient? client;
+        Timer? debounce;
         lock (_watchGate)
         {
             if (_disposed)
                 return;
             _disposed = true;
-            if (_watchEnumerator is not null && _notificationClient is not null)
-            {
-                try
-                {
-                    _watchEnumerator.UnregisterEndpointNotificationCallback(_notificationClient);
-                }
-                catch (System.Runtime.InteropServices.COMException)
-                {
-                }
-            }
-
-            _watchEnumerator?.Dispose();
+            enumerator = _watchEnumerator;
+            client = _notificationClient;
+            debounce = _debounce;
             _watchEnumerator = null;
-            _debounce?.Dispose();
             _debounce = null;
         }
+
+        // Unregister outside the lock: Unregister waits for in-flight callbacks, and callbacks take _watchGate.
+        if (enumerator is not null && client is not null)
+        {
+            try
+            {
+                enumerator.UnregisterEndpointNotificationCallback(client);
+            }
+            catch (System.Runtime.InteropServices.COMException)
+            {
+            }
+        }
+
+        enumerator?.Dispose();
+        debounce?.Dispose();
     }
 
     /// <summary>IMMNotificationClient sink. Public because built-in COM callable wrappers are most reliable for public types.</summary>

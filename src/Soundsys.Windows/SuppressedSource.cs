@@ -27,7 +27,16 @@ public sealed class SuppressedSource : IAudioSource
 
     public void Start(ISourceSink sink)
     {
-        _suppressor.Apply();
+        try
+        {
+            _suppressor.Apply();
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidOperationException or UnauthorizedAccessException or IOException)
+        {
+            _suppressor.Restore();
+            throw new AudioDeviceException("Couldn't mute the laptop speakers, so you may hear the music from the laptop too.", ex);
+        }
+
         try
         {
             _inner.Start(sink);
