@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>$(SoundsysWindowsTfm)</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Soundsys.App</RootNamespace>
+    <AssemblyName>soundsys</AssemblyName>
+    <RuntimeIdentifiers>win-arm64;win-x64</RuntimeIdentifiers>
+    <!-- WPF Fluent ThemeMode is marked experimental -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Soundsys.App.Tests" />
+    <!-- WinForms is only used for the tray NotifyIcon; keep WPF types unambiguous -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Soundsys.Engine\Soundsys.Engine.csproj" />
+    <ProjectReference Include="..\Soundsys.Windows\Soundsys.Windows.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+  </ItemGroup>
+</Project>

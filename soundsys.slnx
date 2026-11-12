@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Soundsys.App/Soundsys.App.csproj" />
+    <Project Path="src/Soundsys.Diag/Soundsys.Diag.csproj" />
+    <Project Path="src/Soundsys.Engine/Soundsys.Engine.csproj" />
+    <Project Path="src/Soundsys.Windows/Soundsys.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Soundsys.App.Tests/Soundsys.App.Tests.csproj" />
+    <Project Path="tests/Soundsys.Engine.Tests/Soundsys.Engine.Tests.csproj" />
+  </Folder>
+</Solution>
