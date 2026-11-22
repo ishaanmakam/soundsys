@@ -16,10 +16,10 @@ public class EngineTests(ITestOutputHelper output)
 
     private sealed class Rig : IDisposable
     {
-        public Rig(AppSettings? settings = null, InMemorySettingsStore? store = null)
+        public Rig(AppSettings? settings = null, InMemorySettingsStore? store = null, SimWorld? world = null)
         {
             Scheduler = new SimScheduler();
-            Backend = new SimulatedBackend(Scheduler);
+            Backend = new SimulatedBackend(Scheduler, world);
             Store = store ?? new InMemorySettingsStore(settings);
             Power = new FakePower();
             Engine = new SyncEngine(Backend, Scheduler, Store, Power);
@@ -77,8 +77,77 @@ public class EngineTests(ITestOutputHelper output)
         public void SetKeepAwake(bool keepAwake) => KeepAwake = keepAwake;
     }
 
+    private static SimWorld World(params (string Id, string Name, bool Bluetooth, bool Available)[] speakers)
+    {
+        var world = new SimWorld();
+        world.Speakers.Clear();
+        world.Speakers.Add((new SimSpeakerOptions { Id = "sim:surface-speakers", Name = "Surface Laptop Speakers", IsBluetooth = false, AcousticLatencyMs = 12 }, true, null));
+        var seed = 40;
+        foreach (var (id, name, bluetooth, available) in speakers)
+        {
+            world.Speakers.Add((new SimSpeakerOptions { Id = id, Name = name, IsBluetooth = bluetooth, Seed = seed++ }, available, null));
+        }
+
+        return world;
+    }
+
     [Fact]
-    public void Preselects_the_two_JBL_speakers_as_Desk_and_Bed()
+    public void Preselects_two_speakers_of_different_brands_and_skips_headphones()
+    {
+        var world = World(
+            ("sim:beats", "Ishaan's Beats Studio Pro", true, true),
+            ("sim:old-speaker", "Some Old Speaker", true, false),
+            ("sim:terrain-mini", "Terrain Mini", true, true),
+            ("sim:clip-4", "JBL Clip 4", true, true));
+        using var rig = new Rig(world: world);
+        Assert.Equal("sim:terrain-mini", rig.Engine.Settings.SpeakerAId);
+        Assert.Equal("sim:clip-4", rig.Engine.Settings.SpeakerBId);
+        Assert.Equal("Ready", rig.Engine.GetStatus().Headline);
+
+        // Speakers before headphones in the list to choose from; everything Bluetooth before the laptop's own speakers.
+        var choices = rig.Engine.GetSpeakerChoices().Select(c => c.Id).ToList();
+        Assert.True(choices.IndexOf("sim:beats") > choices.IndexOf("sim:old-speaker"));
+        Assert.Equal("sim:surface-speakers", choices[^1]);
+    }
+
+    [Fact]
+    public void Does_not_preselect_headphones_when_only_one_speaker_is_paired()
+    {
+        var world = World(
+            ("sim:beats", "Ishaan's Beats Studio Pro", true, true),
+            ("sim:clip-4", "JBL Clip 4", true, true));
+        using var rig = new Rig(world: world);
+        Assert.Null(rig.Engine.Settings.SpeakerAId);
+        Assert.Null(rig.Engine.Settings.SpeakerBId);
+    }
+
+    [Fact]
+    public void Fills_the_empty_slot_without_repeating_the_chosen_speaker()
+    {
+        var world = World(
+            ("sim:terrain-mini", "Terrain Mini", true, true),
+            ("sim:clip-4", "JBL Clip 4", true, true));
+        using var rig = new Rig(new AppSettings { SpeakerBId = "sim:terrain-mini" }, world: world);
+        Assert.Equal("sim:clip-4", rig.Engine.Settings.SpeakerAId);
+        Assert.Equal("sim:terrain-mini", rig.Engine.Settings.SpeakerBId);
+    }
+
+    [Theory]
+    [InlineData("Ishaan's Beats Studio Pro", true)]
+    [InlineData("AirPods Pro", true)]
+    [InlineData("Galaxy Buds2", true)]
+    [InlineData("WH-1000XM5 Headphones", true)]
+    [InlineData("Beats Pill", false)]
+    [InlineData("Terrain Mini", false)]
+    [InlineData("JBL Clip 4", false)]
+    [InlineData("JBL Flip 6", false)]
+    public void Tells_headphones_from_speakers_by_name(string name, bool headphones)
+    {
+        Assert.Equal(headphones, SyncEngine.LooksLikeHeadphones(name));
+    }
+
+    [Fact]
+    public void Preselects_the_two_Bluetooth_speakers_as_Desk_and_Bed()
     {
         using var rig = new Rig();
         Assert.Equal(Desk, rig.Engine.Settings.SpeakerAId);

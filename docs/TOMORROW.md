@@ -1,6 +1,6 @@
 # Tomorrow: first run on real hardware
 
-About 45 minutes in total, most of it hands-off. You need both JBL speakers (charged), your iPhone, and the Surface. It plays real audio, so do it when it's OK to make noise.
+About 45 minutes in total, most of it hands-off. You need both Bluetooth speakers (charged; any two brands, for example a Skullcandy Terrain Mini and a JBL Clip 4), your iPhone, and the Surface. It plays real audio, so do it when it's OK to make noise.
 
 ## Step 0: Smart App Control (read first)
 
@@ -17,7 +17,10 @@ If you see *"An Application Control policy has blocked this file"* or the progra
 ## Step 1: Pair the speakers (5 min)
 
 1. Windows: **Settings → Bluetooth & devices → Add device → Bluetooth**.
-2. JBL: hold the Bluetooth button until it blinks fast, then click it in the Windows list. Do this for **both** speakers.
+2. Put the speaker in pairing mode, then click it in the Windows list. Do this for **both** speakers.
+   - JBL Clip 4: press the Bluetooth button; the light blinks.
+   - Skullcandy Terrain Mini: hold the Bluetooth button for 3 s; the light blinks blue.
+   - If a speaker is still connected to your phone, it won't show up. On the iPhone, tap the ⓘ next to it in Bluetooth settings and choose Disconnect first.
 3. Leave both speakers on.
 
 ## Step 2: Pair the iPhone with the laptop (2 min)
@@ -27,11 +30,11 @@ If you see *"An Application Control policy has blocked this file"* or the progra
 
 ## Step 3: Check the Windows output (30 s)
 
-Click the speaker icon in the taskbar and make sure the output is the **laptop speakers**, *not* a JBL. soundsys sends to the JBLs itself. Set the laptop volume to about 30 %.
+Click the speaker icon in the taskbar and make sure the output is the **laptop speakers**, *not* one of the Bluetooth speakers. soundsys sends to both speakers itself. Set the laptop volume to about 30 %.
 
 ## Step 4: Run one command (≈ 35 min, mostly waiting)
 
-Open **Terminal** and run:
+In File Explorer, open `Documents\soundsys` and double-click **`test-hardware.cmd`**. It gets the latest version, builds it, and runs the checks. The same thing from **Terminal**:
 
 ```powershell
 cd $HOME\Documents\soundsys
@@ -62,9 +65,7 @@ Press **Ctrl+C** at any time to stop. It un-mutes or un-does anything it changed
 
 ## Step 5: Use the app
 
-```powershell
-dotnet run --project src\Soundsys.App -c Release
-```
+Double-click **`start.cmd`** in `Documents\soundsys` (or run `dotnet run --project src\Soundsys.App -c Release`).
 
 Press **Start**, pick the laptop on your phone, and play.
 - **Sync** tab → **Auto-calibrate** whenever you move things around.

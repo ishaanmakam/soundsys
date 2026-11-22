@@ -83,7 +83,7 @@ internal static class Checks
         if (engine.Settings.SpeakerAId is null || engine.Settings.SpeakerBId is null)
         {
             var paired = await ctx.Operator.AskAsync(
-                "Pair both JBL speakers with Windows: Settings → Bluetooth & devices → Add device (speakers on, in pairing mode).",
+                "Pair both Bluetooth speakers with Windows: Settings → Bluetooth & devices → Add device (speakers on, in pairing mode).",
                 () => engine.Settings.SpeakerAId is not null && engine.Settings.SpeakerBId is not null,
                 ctx.Wait(5), null, ct).ConfigureAwait(false);
             if (!paired)

@@ -5,7 +5,7 @@ This mirrors `soundsys-diag`. Each row is one check: `--only <id>` runs it alone
 | ☐ | id | Check | How it's verified (automatically) | Pass criteria | You do |
 |---|---|---|---|---|---|
 | ☐ | `environment` | Devices present | Lists render/capture endpoints, Bluetooth classification, paired phones, default output, plus the full silent probe | ≥ 2 Bluetooth speakers, ≥ 1 phone, a mic | Nothing |
-| ☐ | `speakers` | Both speakers connected | Polls endpoint state until both selected JBLs are Active; reads battery if Windows exposes it | Both Active within 3 min | Turn them on |
+| ☐ | `speakers` | Both speakers connected | Polls endpoint state until both selected speakers are Active; reads battery if Windows exposes it | Both Active within 3 min | Turn them on |
 | ☐ | `tones` | Both play **at the same time** | Opens two WASAPI render streams at once (880 Hz on A, 1320 Hz on B) and records the laptop mic; Goertzel level per tone vs. noise | Each tone ≥ 12 dB above noise | Listen |
 | ☐ | `phone` | Phone → laptop works (AudioPlaybackConnection) | Starts the engine in Phone mode and waits for captured audio; records whether a phone capture endpoint appeared or loopback is used; any Windows error text | Audio flowing within 4 min | Choose the laptop as speaker, press play |
 | ☐ | `suppression` | No double audio | Measures the default output by loopback while the phone plays. If the phone is audible there, tries (1) muting only the phone's session, then (2) muting the laptop output, checking each time that soundsys still captures; saves the first that works | Laptop output silent, or a working fix found | Nothing (brief mute/unmute) |
