@@ -23,8 +23,8 @@ flowchart LR
         CB["Bed channel<br/>delay · resampler · gain"]
         CAL["Calibration<br/>sweep + laptop mic<br/>GCC-PHAT"]
     end
-    J1["JBL speaker 1 (Desk)"]
-    J2["JBL speaker 2 (Bed)"]
+    J1["Bluetooth speaker 1 (Desk)"]
+    J2["Bluetooth speaker 2 (Bed)"]
 
     P1 -- Bluetooth --> APC
     P2 -- Bluetooth --> APC
@@ -70,7 +70,7 @@ Nothing to install, no admin rights, no drivers. Settings live in `%LOCALAPPDATA
 1. **Pair the speakers with Windows**: Settings → Bluetooth & devices → Add device. Turn both speakers on first.
 2. **Pair your phone with the laptop** the same way (the phone starts the pairing from its Bluetooth screen).
 3. **Open soundsys.**
-   - **Speakers** tab: both JBLs are preselected. Rename them if you like ("Desk", "Bed").
+   - **Speakers** tab: your two Bluetooth speakers are preselected (any brands; headphones are skipped). Rename them if you like ("Desk", "Bed").
    - **Phones** tab: keep the phones that should be able to play.
 4. Press **Start**. On your phone, open Bluetooth (or the AirPlay/output picker on iPhone) and choose the laptop.
 5. **Sync** tab → **Auto-calibrate**. Put the laptop roughly where you listen and keep the room quiet for 5 seconds.
@@ -88,7 +88,7 @@ Want to check the hardware first? Run `soundsys-diag.exe`. It tests everything (
 | Sound also comes out of the laptop | Windows is playing the incoming audio on the laptop speakers too. Run `soundsys-diag` once; it detects which suppression method works on your laptop and saves it. |
 | Speakers sound like an echo | Run **Auto-calibrate** again from where you sit. Or use the click track and the manual slider: move it until the two clicks merge into one. |
 | Occasional stutter | Bluetooth is busy (three streams in Phone mode). Try Laptop mode, move the speakers closer, or turn off other Bluetooth devices. soundsys automatically adds a little buffering after repeated drop-outs. |
-| "Windows is also sending sound straight to Desk" | In Windows sound settings, choose the laptop speakers as the output. soundsys sends to the JBLs itself. |
+| "Windows is also sending sound straight to Desk" | In Windows sound settings, choose the laptop speakers as the output. soundsys sends to the two speakers itself. |
 
 ## Build from source
 

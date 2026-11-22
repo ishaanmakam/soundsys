@@ -108,7 +108,7 @@ Each JBL's DAC clock versus the incoming A2DP stream is managed inside the speak
 WPF on .NET 10, using the built-in Fluent theme (follows system light/dark, Mica). It has a tray icon and one 400×640 window that hides to the tray on close.
 
 - **Home:** status line, a big Start/Stop, a Phone / Laptop source switch, master volume, and one card per speaker (name, connection state, battery if exposed, volume, current offset).
-- **Speakers:** pick two render endpoints from the paired Bluetooth endpoints (JBLs preselected by name) and rename them.
+- **Speakers:** pick two render endpoints from the paired Bluetooth endpoints (the two Bluetooth speakers are preselected, any brand; headphones are skipped) and rename them.
 - **Phones:** paired phones, each with an enable toggle.
 - **Sync:** Auto-calibrate with live progress and results, plus the manual slider and click-track toggle.
 - **Settings:** start with Windows, auto-start when both speakers are on, keep awake, check for updates, and a hidden "Simulated devices" option (developer toggle, revealed by clicking the version label 5 times).

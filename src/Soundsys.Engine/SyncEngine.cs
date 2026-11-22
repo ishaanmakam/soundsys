@@ -449,11 +449,11 @@ public sealed class SyncEngine : IDisposable
 
     // ───────────────────────────── Queries ─────────────────────────────
 
-    /// <summary>Speakers the user can choose: Bluetooth first (JBL first among them), then the rest.</summary>
+    /// <summary>Speakers the user can choose: Bluetooth speakers first, then Bluetooth headphones, then the rest.</summary>
     public IReadOnlyList<AudioEndpointInfo> GetSpeakerChoices() =>
         Endpoints()
             .OrderByDescending(s => s.IsBluetooth)
-            .ThenByDescending(s => IsJbl(s.Name))
+            .ThenBy(s => LooksLikeHeadphones(s.Name))
             .ThenBy(s => s.State)
             .ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -753,7 +753,30 @@ public sealed class SyncEngine : IDisposable
     /// <summary>Volume slider (0..1) to linear gain: square law ≈ perceptually even steps.</summary>
     public static float Taper(double volume) => (float)(volume * volume);
 
-    private static bool IsJbl(string name) => name.Contains("JBL", StringComparison.OrdinalIgnoreCase);
+    private static readonly string[] HeadphoneWords =
+        ["airpods", "headphone", "headset", "earbud", "earphone", "buds", "powerbeats", "beats"];
+
+    /// <summary>
+    /// True when a Bluetooth device's name says it is worn, not placed in a room ("Ishaan's Beats Studio Pro", "AirPods Pro").
+    /// Such devices are never picked automatically; they can still be chosen by hand on the Speakers page.
+    /// </summary>
+    public static bool LooksLikeHeadphones(string name)
+    {
+        if (name.Contains("pill", StringComparison.OrdinalIgnoreCase))
+        {
+            return false; // Beats Pill is a speaker
+        }
+
+        foreach (var word in HeadphoneWords)
+        {
+            if (name.Contains(word, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private void Enqueue(Action<double> action) => _pending.Enqueue(action);
 
@@ -1143,20 +1166,20 @@ public sealed class SyncEngine : IDisposable
             return;
         }
 
-        // Keep Windows' own order for ties (stable sort): JBLs first, then speakers that are on.
-        var candidates = _endpoints
-            .Where(s => s.IsBluetooth)
-            .OrderByDescending(s => IsJbl(s.Name))
-            .ThenBy(s => s.State)
+        // Any two Bluetooth speakers will do, whatever the brand. Speakers that are on come first; Windows' own order
+        // breaks ties (stable sort). Headphones are skipped: with fewer than two real speakers nothing is picked yet,
+        // and this runs again when another speaker is paired.
+        var pick = _endpoints
+            .Where(s => s.IsBluetooth && !LooksLikeHeadphones(s.Name))
+            .OrderBy(s => s.State)
+            .Take(2)
             .ToList();
-        if (candidates.Count < 2)
+        if (pick.Count < 2)
         {
             return;
         }
 
-        var jbl = candidates.Where(s => IsJbl(s.Name)).ToList();
-        var pick = (jbl.Count >= 2 ? jbl : candidates).Take(2).ToList();
-        Settings.SpeakerAId ??= pick[0].Id;
+        Settings.SpeakerAId ??= pick.First(p => p.Id != Settings.SpeakerBId).Id;
         Settings.SpeakerBId ??= pick.First(p => p.Id != Settings.SpeakerAId).Id;
         if (!Settings.SpeakerNames.ContainsKey(Settings.SpeakerAId))
         {

@@ -72,7 +72,7 @@ The background is the Mica window backdrop (system). Nothing paints over it exce
 └────────────────────────────────────┘
 ```
 Secondary pages replace the middle region and keep the tab bar:
-- **Speakers:** for "Speaker 1" and "Speaker 2", a dropdown of endpoints (Bluetooth first, JBL first, unavailable ones marked "off") and a name box.
+- **Speakers:** for "Speaker 1" and "Speaker 2", a dropdown of endpoints (Bluetooth speakers first, then headphones, unavailable ones marked "off") and a name box.
 - **Phones:** a list of paired phones, each with a toggle and a live state ("Playing", "Connected", "Not connected"). Explainer line: "On your phone, open Bluetooth and choose this laptop."
 - **Sync:**
   - "Auto-calibrate" (accent button) with live step text, then the result in plain words plus the numbers (Desk 232 ms · Bed 291 ms → Desk waits 59 ms).
